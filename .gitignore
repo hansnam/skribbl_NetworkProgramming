@@ -1,0 +1,48 @@
+# ==========================================
+# Root Workspace Ignore Rules (Java 21 + Maven + IDEs)
+# ==========================================
+target/
+**/target/
+out/
+build/
+*.class
+*.log
+logs/
+hs_err_pid*
+replay_pid*
+
+# Package outputs
+*.jar
+*.war
+dependency-reduced-pom.xml
+
+# IDEs (when opening repository root in IntelliJ / VS Code / Eclipse)
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+.classpath
+.project
+.settings/
+nbproject/
+
+# OS & Temp files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.tmp
+*.bak
+*.swp
+*~
+.env
+.env.local
+
+# Local planning documents (not pushed to GitHub)
+PLAN.md
+plan.md
+
+# Keep folder structure placeholders
+!.gitkeep
+

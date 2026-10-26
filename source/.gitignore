@@ -1,0 +1,75 @@
+# ==========================================
+# Compiled Java classes & Build outputs
+# ==========================================
+target/
+**/target/
+out/
+build/
+*.class
+*.log
+logs/
+hs_err_pid*
+replay_pid*
+
+# ==========================================
+# Package Files (JAR / WAR)
+# ==========================================
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# ==========================================
+# Maven & Maven Shade Plugin
+# ==========================================
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# ==========================================
+# IDEs & Editors (IntelliJ, VS Code, Eclipse, NetBeans)
+# ==========================================
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+.classpath
+.project
+.settings/
+.factorypath
+nbproject/
+nbbuild/
+nbdist/
+.nb-gradle/
+
+# ==========================================
+# OS & Temporary Files (Windows / macOS / Linux)
+# ==========================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.tmp
+*.bak
+*.swp
+*~
+.env
+.env.local
+
+# ==========================================
+# Keep folder structure placeholders
+# ==========================================
+!.gitkeep
+
