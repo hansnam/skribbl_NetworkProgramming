@@ -1,85 +1,78 @@
-# MODULE SERVER
+# MODULE SERVER — SKRIBBL MULTIPLAYER
 
-> 📘 *Sinh viên mô tả phần **server** tại đây. Điền đầy đủ theo framework và bài toán của nhóm.*
+> 📘 **Phụ trách chính:** Thành viên 1 (Lõi Mạng TCP, Đa luồng Java 21 Virtual Threads & Hệ thống Đa phòng)
 
 ---
 
-## 🎯 MỤC TIÊU
+## 🎯 MỤC TIÊU & KIẾN TRÚC LÕI
 
-Server chịu trách nhiệm:
-- Tiếp nhận yêu cầu từ client
-- Xử lý dữ liệu/tính toán
-- Trả kết quả cho client
+Module **Server** đóng vai trò là trung tâm điều phối có thẩm quyền (*Server-Authoritative*) cho toàn bộ trò chơi Skribbl:
+- Tiếp nhận và duy trì đồng thời hàng chục kết nối TCP Socket Client với độ trễ thấp (`TCP_NODELAY = true`).
+- Ứng dụng **Java 21 Virtual Threads** (`Thread.ofVirtual()`): Mỗi kết nối Client được phục vụ đọc dữ liệu bất đồng bộ trên một virtual thread riêng biệt mà không lo cạn kiệt tài nguyên hệ thống.
+- **Thread-safe Socket Writer:** Đồng bộ hóa quá trình gửi bản tin bằng `synchronized(writeLock)` kèm `writer.newLine(); writer.flush();` để ngăn chặn trộn lẫn byte giữa luồng game và luồng vẽ.
+- **Hệ thống Đa phòng (`RoomManager` + `GameRoom`):** Quản lý đồng thời nhiều phòng chơi độc lập trên RAM bằng `ConcurrentHashMap`. Hỗ trợ sinh mã phòng 5 ký tự ngẫu nhiên, cơ chế kiểm tra trùng Nickname trong cùng phòng, và tự động chuyển giao quyền Chủ phòng (Host) khi Host ngắt kết nối.
+- **Bộ định tuyến gói tin (`ServerPacketRouter`):** Giải mã bản tin NDJSON và phân phối xử lý theo `MessageType`.
 
 ---
 
 ## ⚙️ CÔNG NGHỆ SỬ DỤNG
 
-| Thành phần | Công nghệ |
-|------------|-----------|
-| Ngôn ngữ | Python / Node.js / Java / ... |
-| Framework | Flask / Express / Spring Boot / ... |
-| Database | SQLite / MySQL / ... (nếu có) |
+| Thành phần | Công nghệ / Thư viện | Vai trò |
+| :--- | :--- | :--- |
+| **Ngôn ngữ** | **Java 21 LTS** | Virtual Threads, Records, Pattern Matching |
+| **Giao tiếp mạng** | **TCP Socket (`java.net.ServerSocket`, `Socket`)** | Giao tiếp 2 chiều song công, framing NDJSON UTF-8 |
+| **Định dạng dữ liệu** | **NDJSON + Jackson Databind 2.17.2** | Mã hóa và giải mã bản tin 1 dòng duy nhất |
+| **Kiểm thử** | **JUnit 5.10.3** | Unit test và Integration test mạng TCP thời gian thực |
+| **Đóng gói** | **Maven Shade Plugin 3.6.0** | Xuất file thực thi độc lập `skribbl-server.jar` |
 
 ---
 
-## 🚀 HƯỚNG DẪN CHẠY
+## 🚀 HƯỚNG DẪN BUILD & CHẠY
 
-### Cài đặt
+### 1. Build & Test qua Maven
+Từ thư mục gốc dự án:
 ```bash
-# Ví dụ với Python
-pip install -r requirements.txt
-
-# Hoặc với Node.js
-npm install
+cd source
+mvn clean test
 ```
 
-### Khởi động server
+### 2. Đóng gói Fat-JAR
 ```bash
-# Ví dụ
-python app.py
-# hoặc
-node server.js
+cd source
+mvn clean package -DskipTests
 ```
+File thực thi sẽ được tạo tại: `source/server/target/skribbl-server.jar`.
 
-Server chạy tại: `http://localhost:8080`
-
----
-
-## 🔗 API
-
-| Endpoint | Method | Input | Output |
-|----------|--------|-------|--------|
-| `/health` | GET | — | `{"status":"ok"}` |
-| `/api/...` | POST | `{...}` | `{...}` |
-
-> **Lưu ý:** Bổ sung các endpoint của nhóm vào bảng trên.
-
----
-
-## 📦 CẤU TRÚC
-```
-server/
-├── README.md
-├── app.py (hoặc server.js)
-├── requirements.txt (hoặc package.json)
-├── routes/
-│   └── ...
-└── utils/
-    └── ...
-```
-
----
-
-## 🧪 TEST
+### 3. Khởi động Server
+Chạy với cổng mặc định (`8888`):
 ```bash
-# Test API bằng curl
-curl http://localhost:8080/health
+java -jar source/server/target/skribbl-server.jar
+```
+Hoặc chỉ định cổng tùy chọn (ví dụ: `9090`):
+```bash
+java -jar source/server/target/skribbl-server.jar 9090
 ```
 
 ---
 
-## 📝 GHI CHÚ
+## 📦 CẤU TRÚC GÓI MÃ NGUỒN PHẦN SERVER
 
-- Port mặc định: **8080**
-- Có thể thay đổi trong file `.env` hoặc config
+```text
+source/server/src/main/java/com/skribbl/server/
+├── ServerMain.java                  # Điểm khởi chạy Server & Shutdown Hook
+├── net/
+│   ├── TcpServer.java               # ServerSocket Acceptor & Virtual Threads
+│   └── ClientSession.java           # Quản lý Socket I/O, UTF-8, Thread-safe write
+├── room/
+│   ├── RoomManager.java             # Quản lý đa phòng song song, sinh mã 5 ký tự
+│   └── GameRoom.java                # Quản lý thành viên phòng, Host election, broadcast
+└── handler/
+    └── ServerPacketRouter.java      # Định tuyến các gói tin theo MessageType
+```
+
+---
+
+## 🧪 KIỂM THỬ TÍCH HỢP & CHỊU LỖI (FAULT TOLERANCE)
+
+- `RoomManagerTest`: Kiểm tra tạo phòng, vào phòng, chặn trùng nickname, tự chuyển quyền Host và dọn dẹp phòng trống khi người cuối cùng rời đi.
+- `TcpServerIntegrationTest`: Mở server trên cổng động, kết nối socket thật gửi `CONNECT_REQ`, `CREATE_ROOM`, `JOIN_ROOM`, `PING`/`PONG` qua NDJSON và kiểm tra đa luồng đồng thời.

@@ -10,7 +10,7 @@
 
 | STT | Họ và Tên | MSSV | Email | Đóng góp |
 |-----|-----------|------|-------|----------|
-| 1 | Trần Hán Nam | B23DCCN590 | a@example.com | ... |
+| 1 | Trần Hán Nam | B23DCCN590 | namth.b23dccn590@stu.ptit.edu.vn | Hạ tầng TCP Server, Java 21 Virtual Threads, Giao thức NDJSON & Hệ thống Đa phòng |
 | 2 | Đàm Tiến Thành  | B23DCCN764 | b@example.com | ... |
 | 3 | Đinh Minh Tuân | B23DCCN880 | c@example.com | ... |
 
@@ -61,37 +61,68 @@ Hệ thống là ứng dụng trò chơi **vẽ và đoán từ khóa trực tuy
 
 ## 🚀 HƯỚNG DẪN CHẠY DỰ ÁN
 
-### 1. Clone repository
+### 1. Build & Đóng gói toàn bộ hệ thống
+Yêu cầu hệ thống: **JDK 21 LTS** và **Apache Maven 3.9+**.
 ```bash
-git clone <repository-url>
-cd assignment-network-project
+cd source
+mvn clean package -DskipTests
+```
+Lệnh trên sẽ tự động đóng gói 2 file thực thi độc lập:
+- Server: `source/server/target/skribbl-server.jar`
+- Client: `source/client/target/skribbl-client.jar`
+
+### 2. Chạy Server
+Khởi động máy chủ TCP (mặc định lắng nghe trên cổng `8888`):
+```bash
+java -jar source/server/target/skribbl-server.jar
+```
+*(Có thể truyền tham số cổng tùy chỉnh: `java -jar source/server/target/skribbl-server.jar 9090`)*
+
+### 3. Chạy Client
+Mở giao diện Client:
+```bash
+java -jar source/client/target/skribbl-client.jar
 ```
 
-### 2. Chạy server
+### 4. Kiểm thử tự động (JUnit 5)
+Chạy toàn bộ Unit Test và Integration Test mạng:
 ```bash
-cd source/server
-# Các lệnh để khởi động server
-```
-
-### 3. Chạy client
-```bash
-cd source/client
-# Các lệnh để khởi động client
-```
-
-### 4. Kiểm thử nhanh
-```bash
-# Các lệnh test
+cd source
+mvn test
 ```
 
 ---
 
-## 🔗 GIAO TIẾP (GIAO THỨC SỬ DỤNG)
+## 🔗 GIAO TIẾP & ĐẶC TẢ GIAO THỨC MẠNG (NDJSON)
 
-| Endpoint | Protocol | Method | Input | Output |
-|----------|----------|--------|-------|--------|
-| `/health` | HTTP/1.1 | GET | — | `{"status": "ok"}` |
-| `/compute` | HTTP/1.1 | POST | `{"task":"sum","payload":[1,2,3]}` | `{"result":6}` |
+Hệ thống giao tiếp thông qua giao thức **TCP Socket thuần**, mã hóa `UTF-8` với cơ chế **Newline-Delimited JSON (NDJSON)**: Mỗi bản tin là một chuỗi JSON nằm trọn vẹn trên đúng **1 dòng kết thúc bằng ký tự `\n`**, bọc trong cấu trúc vỏ `NetworkMessage`:
+
+```json
+{"type":"DRAW_STROKE","timestamp":1761465000000,"payload":{"x1":100,"y1":150,"x2":108,"y2":156,"color":"#1E88E5","thickness":6,"eraser":false}}
+```
+
+| STT | `MessageType` | Chiều | Trường dữ liệu `payload` | Mô tả nghiệp vụ |
+| :-: | :--- | :---: | :--- | :--- |
+| 1 | `CONNECT_REQ` | C → S | `nickname` | Client đăng ký tên hiển thị ngay khi mở kết nối |
+| 2 | `CONNECT_ACK` | S → C | `playerId`, `nickname` | Server cấp ID duy nhất và xác nhận kết nối |
+| 3 | `CREATE_ROOM` | C → S | `maxRounds`, `drawTimeSec` | Tạo phòng mới (sinh mã phòng ngẫu nhiên 5 ký tự) |
+| 4 | `JOIN_ROOM` | C → S | `roomCode` | Tham gia phòng chơi bằng mã 5 ký tự |
+| 5 | `LEAVE_ROOM` | C → S | *(rỗng)* | Rời khỏi phòng hiện tại |
+| 6 | `ROOM_UPDATE` | S → Room | `roomCode`, `hostId`, `status`, `players[]`, `maxRounds`, `drawTimeSec`, `currentRound` | Đồng bộ danh sách người chơi, điểm số và chủ phòng |
+| 7 | `START_GAME` | C → S | *(rỗng)* | Chủ phòng (Host) phát lệnh bắt đầu ván chơi |
+| 8 | `WORD_CHOICES` | S → Drawer | `choices[3]`, `chooseSeconds` | Gửi riêng 3 từ tiếng Anh cho người vẽ chọn |
+| 9 | `CHOOSE_WORD` | Drawer → S | `choiceIndex` (`0..2`) | Người vẽ gửi lựa chọn từ khóa |
+| 10 | `TURN_START` | S → Room | `round`, `maxRounds`, `drawerId`, `wordDisplay`, `drawTimeSec` | Bắt đầu lượt vẽ mới |
+| 11 | `TIMER_UPDATE` | S → Room | `remainingSec`, `wordMask` | Cập nhật đồng hồ đếm ngược và gợi ý mở chữ cái |
+| 12 | `DRAW_STROKE` | Drawer → S → Others | `x1`, `y1`, `x2`, `y2`, `color`, `thickness`, `eraser` | Chuyển tiếp tọa độ nét vẽ thời gian thực |
+| 13 | `CLEAR_CANVAS` | Drawer → S → Others | *(rỗng)* | Lệnh xóa sạch bảng vẽ |
+| 14 | `CANVAS_SYNC` | S → C | `strokes[]` | Đồng bộ toàn bộ nét vẽ cho người vào giữa ván |
+| 15 | `CHAT_SEND` | C → S | `text` | Gửi câu trò chuyện hoặc từ đoán lên Server |
+| 16 | `CHAT_MESSAGE` | S → Room/C | `sender`, `text`, `kind` (`NORMAL`, `SYSTEM`, `CLOSE_GUESS`) | Hiển thị tin nhắn hoặc báo gần đúng |
+| 17 | `PLAYER_GUESSED`| S → Room | `playerId`, `nickname`, `awardedPoints`, `drawerBonus`, `players[]` | Thông báo đoán đúng & cập nhật điểm số |
+| 18 | `TURN_END` | S → Room | `word`, `reason`, `turnScores`, `players[]` | Hết lượt vẽ và công bố đáp án |
+| 19 | `GAME_OVER` | S → Room | `winners[]`, `players[]` | Kết thúc toàn bộ ván đấu và trao giải |
+| 20 | `ERROR_MSG` | S → C | `code`, `message` | Thông báo lỗi hệ thống/nghiệp vụ |
 
 ---
 
