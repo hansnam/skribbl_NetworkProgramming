@@ -39,3 +39,4 @@ public enum MessageType {
     // System & Errors
     ERROR_MSG
 }
+

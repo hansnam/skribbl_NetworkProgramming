@@ -7,3 +7,4 @@ public record ConnectAckDto(
         @JsonProperty("nickname") String nickname
 ) {
 }
+

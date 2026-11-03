@@ -8,3 +8,4 @@ public record WordChoicesDto(
         @JsonProperty("chooseSeconds") int chooseSeconds
 ) {
 }
+

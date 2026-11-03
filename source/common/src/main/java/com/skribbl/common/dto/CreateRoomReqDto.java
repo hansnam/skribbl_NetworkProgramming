@@ -11,3 +11,4 @@ public record CreateRoomReqDto(
         if (drawTimeSec <= 0) drawTimeSec = 60;
     }
 }
+

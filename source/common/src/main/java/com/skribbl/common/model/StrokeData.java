@@ -15,3 +15,4 @@ public record StrokeData(
         @JsonProperty("eraser") boolean eraser
 ) {
 }
+

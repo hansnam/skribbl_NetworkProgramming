@@ -20,3 +20,4 @@ public record DrawStrokeDto(
         return new DrawStrokeDto(s.x1(), s.y1(), s.x2(), s.y2(), s.color(), s.thickness(), s.eraser());
     }
 }
+

@@ -6,3 +6,4 @@ public record ChatSendDto(
         @JsonProperty("text") String text
 ) {
 }
+

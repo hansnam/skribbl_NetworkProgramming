@@ -29,3 +29,4 @@ public record PlayerDto(
         return new PlayerDto(id, nickname, score, isHost, isDrawer, newHasGuessed);
     }
 }
+

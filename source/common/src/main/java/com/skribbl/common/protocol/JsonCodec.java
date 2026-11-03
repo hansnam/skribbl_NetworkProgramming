@@ -107,3 +107,4 @@ public final class JsonCodec {
         return MAPPER.valueToTree(object);
     }
 }
+

@@ -11,3 +11,4 @@ public record TurnStartDto(
         @JsonProperty("drawTimeSec") int drawTimeSec
 ) {
 }
+

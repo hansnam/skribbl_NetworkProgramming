@@ -5,3 +5,4 @@ public enum ChatKind {
     SYSTEM,
     CLOSE_GUESS
 }
+

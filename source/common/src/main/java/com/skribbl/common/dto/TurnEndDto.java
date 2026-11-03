@@ -13,3 +13,4 @@ public record TurnEndDto(
         @JsonProperty("players") List<PlayerDto> players
 ) {
 }
+

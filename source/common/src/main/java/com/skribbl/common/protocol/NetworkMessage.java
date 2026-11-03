@@ -33,3 +33,4 @@ public record NetworkMessage(
         return new NetworkMessage(type, System.currentTimeMillis(), NullNode.getInstance());
     }
 }
+

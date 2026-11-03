@@ -6,3 +6,4 @@ public record JoinRoomReqDto(
         @JsonProperty("roomCode") String roomCode
 ) {
 }
+

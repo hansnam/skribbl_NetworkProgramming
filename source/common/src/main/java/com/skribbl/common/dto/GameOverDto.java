@@ -10,3 +10,4 @@ public record GameOverDto(
         @JsonProperty("players") List<PlayerDto> players
 ) {
 }
+

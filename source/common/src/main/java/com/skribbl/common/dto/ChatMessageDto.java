@@ -8,3 +8,4 @@ public record ChatMessageDto(
         @JsonProperty("kind") ChatKind kind
 ) {
 }
+

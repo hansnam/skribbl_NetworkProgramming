@@ -87,3 +87,4 @@ class JsonCodecTest {
         assertThrows(IllegalArgumentException.class, () -> JsonCodec.deserialize(null));
     }
 }
+

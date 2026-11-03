@@ -7,3 +7,4 @@ public record TimerUpdateDto(
         @JsonProperty("wordMask") String wordMask
 ) {
 }
+

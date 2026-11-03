@@ -16,3 +16,4 @@ public record RoomUpdateDto(
         @JsonProperty("currentRound") int currentRound
 ) {
 }
+

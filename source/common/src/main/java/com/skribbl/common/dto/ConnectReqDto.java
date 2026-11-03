@@ -6,3 +6,4 @@ public record ConnectReqDto(
         @JsonProperty("nickname") String nickname
 ) {
 }
+

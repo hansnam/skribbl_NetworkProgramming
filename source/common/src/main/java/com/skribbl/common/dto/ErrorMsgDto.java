@@ -7,3 +7,4 @@ public record ErrorMsgDto(
         @JsonProperty("message") String message
 ) {
 }
+

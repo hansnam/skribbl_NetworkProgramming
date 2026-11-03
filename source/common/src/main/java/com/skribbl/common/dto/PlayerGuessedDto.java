@@ -13,3 +13,4 @@ public record PlayerGuessedDto(
         @JsonProperty("players") List<PlayerDto> players
 ) {
 }
+

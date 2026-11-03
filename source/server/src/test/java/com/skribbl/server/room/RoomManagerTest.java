@@ -125,3 +125,4 @@ class RoomManagerTest {
         assertNull(roomManager.getRoom(code));
     }
 }
+
