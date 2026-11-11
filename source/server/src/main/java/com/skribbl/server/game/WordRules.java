@@ -10,18 +10,20 @@ public final class WordRules {
             .toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
     }
 
-    public static boolean containAnswer(String text, String answer) {
+    public static boolean containsAnswer(String text, String answer) {
         if (answer == null || answer.isEmpty()) return false;
         // Dataset chỉ chứa a-z và khoảng trắng: dấu câu thành ranh giới từ.
         String tokens = normalize(text).replaceAll("[^a-z]+", " ").strip();
         return (" " + tokens + " ").contains(" " + answer + " ");
     }
 
-    public static int distant(String a, String b) {
+    public static int distance(String a, String b) {
         int[] row = new int[b.length() + 1];
         for (int j = 0; j <= b.length(); j++) row[j] = j;
         for (int i = 1; i <= a.length(); i++) {
             int diagonal = row[0];
+            row[0] = i;
+            
             for (int j = 1; j <= b.length(); j++) {
                 int oldAbove = row[j];
                 int replace = diagonal + (a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1);
