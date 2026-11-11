@@ -10,6 +10,7 @@ import com.skribbl.server.room.RoomManager;
 
 import java.util.UUID;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Routes and handles incoming NDJSON packets from connected ClientSessions.
@@ -22,7 +23,7 @@ public class ServerPacketRouter {
     // Optional extension hooks for TV2 (GameEngine) and TV3 (CanvasSyncService)
     private BiConsumer<GameRoom, ClientSession> startGameHandler;
     private BiConsumer<GameRoom, DrawStrokeDto> strokeRecordedHandler;
-    private Runnable clearCanvasHandler;
+    private Consumer<GameRoom> clearCanvasHandler;
     private BiConsumer<ClientSession, ChatSendDto> chatGuessHandler;
     private BiConsumer<ClientSession, ChooseWordDto> wordChoiceHandler;
 
@@ -38,7 +39,7 @@ public class ServerPacketRouter {
         this.strokeRecordedHandler = strokeRecordedHandler;
     }
 
-    public void setClearCanvasHandler(Runnable clearCanvasHandler) {
+    public void setClearCanvasHandler(Consumer<GameRoom> clearCanvasHandler) {
         this.clearCanvasHandler = clearCanvasHandler;
     }
 
@@ -171,6 +172,11 @@ public class ServerPacketRouter {
         GameRoom room = roomManager.getRoom(roomCode);
         if (room == null) return;
 
+        // Enforce drawer permission when an active drawer is assigned
+        if (room.getCurrentDrawerId() != null && !room.getCurrentDrawerId().equals(session.getPlayerId())) {
+            return;
+        }
+
         // Relay stroke to all other players in the room
         room.broadcastExcept(session.getPlayerId(), message);
 
@@ -189,10 +195,15 @@ public class ServerPacketRouter {
         GameRoom room = roomManager.getRoom(roomCode);
         if (room == null) return;
 
+        // Enforce drawer permission when an active drawer is assigned
+        if (room.getCurrentDrawerId() != null && !room.getCurrentDrawerId().equals(session.getPlayerId())) {
+            return;
+        }
+
         room.broadcastExcept(session.getPlayerId(), message);
 
         if (clearCanvasHandler != null) {
-            clearCanvasHandler.run();
+            clearCanvasHandler.accept(room);
         }
     }
 
