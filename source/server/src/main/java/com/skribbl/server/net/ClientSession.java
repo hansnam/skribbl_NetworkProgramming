@@ -17,6 +17,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 /**
  * Manages an individual TCP client connection on the Server.
@@ -38,6 +40,9 @@ public class ClientSession {
     private BiConsumer<ClientSession, NetworkMessage> messageHandler;
     private Consumer<ClientSession> disconnectHandler;
 
+    private final BlockingQueue<NetworkMessage> outgoing = new ArrayBlockingQueue<>(256);
+    private Thread writerThread;
+
     public ClientSession(Socket socket) throws IOException {
         this.sessionId = UUID.randomUUID().toString().substring(0, 8);
         this.socket = Objects.requireNonNull(socket, "Socket cannot be null");
@@ -45,6 +50,9 @@ public class ClientSession {
 
         this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
         this.writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+
+        writerThread = Thread.ofVirtual().name("sesstion-writer-" + sessionId)
+            .start(this::writeLoop);
     }
 
     public void setHandlers(BiConsumer<ClientSession, NetworkMessage> messageHandler,
@@ -92,23 +100,10 @@ public class ClientSession {
      * Guaranteed single-line JSON followed by standard newline.
      */
     public void send(NetworkMessage message) {
-        if (message == null || closed.get()) {
-            return;
-        }
-
-        synchronized (writeLock) {
-            if (closed.get()) {
-                return;
-            }
-            try {
-                String json = JsonCodec.serialize(message);
-                writer.write(json);
-                writer.newLine();
-                writer.flush();
-            } catch (IOException e) {
-                System.err.printf("[Session %s] Write failed: %s%n", sessionId, e.getMessage());
-                close();
-            }
+        if (message == null || closed.get()) return;
+        if (!outgoing.offer(message)) {
+            // Client quá chậm: ngắt thay vì chặn toàn bộ game hoặc ăn RAM vô hạn.
+            close();
         }
     }
 
@@ -124,6 +119,23 @@ public class ClientSession {
         send(MessageType.ERROR_MSG, new ErrorMsgDto(code, message));
     }
 
+    public void writeLoop() {
+        try {
+            while (!closed.get()) {
+                NetworkMessage message = outgoing.take();
+                writer.write(JsonCodec.serialize(message));
+                writer.write('\n');
+                writer.flush();
+            }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        } catch (IOException ex) {
+            System.err.println("[Session " + sessionId + "] Write failed: " + ex.getMessage());
+        } finally {
+            close();
+        }
+    }
+
     /**
      * Closes the session and socket, releasing all resources.
      */
@@ -131,6 +143,11 @@ public class ClientSession {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
+
+        if (writerThread != null)
+            writerThread.interrupt();
+        
+        outgoing.clear();
 
         try {
             socket.close();

@@ -1,5 +1,7 @@
 # BÁO CÁO TIỂU LUẬN MÔN LẬP TRÌNH MẠNG
 
+> **Cập nhật thiết kế 11/11/2026:** Giao diện được chuyển sang JavaFX 21.0.13 theo [PFX](tv2/05a-patch-javafx-setup.md). Các đoạn UI trong báo cáo mô tả thiết kế sau chuyển đổi; POM/ClientMain nguồn chưa được sửa trong lần cập nhật Markdown này. Kết quả/log kiểm thử cũ không chứng minh client JavaFX đã chạy; cần bổ sung bằng chứng mới khi triển khai P08.
+
 **HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG**  
 **KHOA CÔNG NGHỆ THÔNG TIN 1**  
 
@@ -15,7 +17,7 @@
 | :-: | :--- | :---: | :--- | :--- |
 | 1 | **Trần Hán Nam** | B23DCCN590 | namth.b23dccn590@stu.ptit.edu.vn | Hạ tầng TCP Server, Đa luồng Java 21 Virtual Threads, Giao thức NDJSON (`common`) & Hệ thống Đa phòng (`RoomManager`, `GameRoom`) |
 | 2 | **Đàm Tiến Thành** | B23DCCN764 | thanhtd.b23dccn764@stu.ptit.edu.vn | Máy trạng thái Luật chơi (`GameEngine`), Bộ đếm thời gian (`TurnScheduler`), Kiểm tra từ khóa, Tính điểm & Giao diện Lobby / Chat |
-| 3 | **Đinh Minh Tuân** | B23DCCN880 | tuandm.b23dccn880@stu.ptit.edu.vn | Tầng mạng Client (`SocketClient`), Điều phối bất đồng bộ Swing EDT, Bảng vẽ `Java2D` thời gian thực & Đồng bộ nét vẽ (`CanvasSync`) |
+| 3 | **Đinh Minh Tuân** | B23DCCN880 | tuandm.b23dccn880@stu.ptit.edu.vn | Tầng mạng Client (`SocketClient`), điều phối JavaFX Application Thread, Canvas/GraphicsContext & Đồng bộ nét vẽ (`CanvasSync`) |
 
 *Hà Nội, tháng 11 năm 2026*
 
@@ -33,7 +35,7 @@
   - 2.2. Giao thức TCP/IP và Lập trình TCP Socket trong Java (`java.net`)
   - 2.3. Kỹ thuật Đa luồng (Multithreading) và Java 21 Virtual Threads
   - 2.4. Thiết kế Giao thức Tầng Ứng dụng với NDJSON và Thư viện Jackson
-  - 2.5. Lập trình Giao diện Đồ họa với Java Swing, Java2D, FlatLaf và Mô hình MVC
+  - 2.5. Lập trình Giao diện Đồ họa với JavaFX, Canvas và Mô hình MVC
 - **CHƯƠNG 3: PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG**
   - 3.1. Phân tích yêu cầu hệ thống (Chức năng & Phi chức năng)
   - 3.2. Sơ đồ Use Case và Phân tích Tác nhân
@@ -64,7 +66,7 @@ Trong kỷ nguyên số hóa hiện nay, các hệ thống phân tán và ứng 
 
 Học phần **Lập trình mạng** cung cấp cho sinh viên những kiến thức cốt lõi về cách các tiến trình trên các máy tính khác nhau trao đổi dữ liệu qua mạng máy tính thông qua giao diện lập trình Socket (TCP/UDP), quản lý luồng I/O, đa luồng và xây dựng giao thức tầng ứng dụng. Để vận dụng toàn diện các kiến thức lý thuyết đó vào thực tiễn, nhóm chúng em đã lựa chọn đề tài: ***"Xây dựng ứng dụng trò chơi vẽ và đoán chữ trực tuyến nhiều người chơi (Skribbl Clone) theo mô hình Client–Server sử dụng TCP Socket và Đa luồng trong Java 21"***.
 
-Thông qua việc tự thiết kế giao thức truyền thông điệp **NDJSON (Newline-Delimited JSON)** chạy trực tiếp trên nền **TCP Socket thuần (`java.net.ServerSocket`, `Socket`)** kết hợp công nghệ **Java 21 Virtual Threads** ở phía Server và **Java Swing / Java2D** ở phía Client, đề tài minh họa trực quan toàn bộ vòng đời của một ứng dụng mạng hiện đại: từ bắt tay định danh, quản lý đa phòng chờ, truyền phát tọa độ đồ họa thời gian thực đến đồng bộ bộ đếm thời gian và xử lý ngắt kết nối đột ngột.
+Thông qua việc tự thiết kế giao thức truyền thông điệp **NDJSON (Newline-Delimited JSON)** chạy trên **TCP Socket thuần (`java.net.ServerSocket`, `Socket`)**, kết hợp **Java 21 Virtual Threads** phía Server và thiết kế **JavaFX / Canvas** phía Client, đề tài minh họa vòng đời ứng dụng mạng: định danh, quản lý đa phòng, truyền tọa độ nét vẽ, đồng bộ thời gian và xử lý mất kết nối.
 
 Nhóm xin gửi lời cảm ơn chân thành tới giảng viên **Nguyễn Quốc Huy** đã tận tình giảng dạy và định hướng chuyên môn để nhóm hoàn thành tiểu luận này.
 
@@ -85,8 +87,8 @@ Nhóm xin gửi lời cảm ơn chân thành tới giảng viên **Nguyễn Qu�
 Nhóm lựa chọn đề tài này cho tiểu luận môn **Lập trình mạng** vì 4 lý do cốt lõi sau:
 1. **Tiêu biểu cho truyền thông song công thời gian thực (Full-Duplex Real-time):** Hệ thống không chỉ nhận yêu cầu đơn lẻ mà phải liên tục truyền phát đồng thời tọa độ nét vẽ, bộ đếm ngược từng giây, gợi ý từ khóa và tin nhắn chat tới nhiều máy trạm.
 2. **Tự thiết kế Giao thức tầng ứng dụng trên nền TCP Socket thuần:** Sử dụng trực tiếp `ServerSocket` và `Socket` kết hợp định dạng **NDJSON (Newline-Delimited JSON)** giúp nhóm nắm vững kỹ thuật đóng khung bản tin (*Message Framing*), mã hóa `UTF-8` và tối ưu độ trễ mạng (`TCP_NODELAY`).
-3. **Ứng dụng hiệu quả Đa luồng và Đồng bộ hóa hiện đại:** Phía Server vận dụng **Java 21 Virtual Threads** cùng cơ chế khóa luồng ghi (`synchronized`) và `ConcurrentHashMap` để phục vụ nhiều phòng chơi song song; phía Client giải quyết bài toán đồng bộ giữa luồng đọc mạng nền và luồng giao diện **Swing EDT**.
-4. **Tính trực quan và khả năng kiểm chứng chịu lỗi mạng cao:** Giao diện đồ họa **Java Swing + Java2D + FlatLaf** trực quan, dễ dàng trình diễn và kiểm chứng các tình huống mạng thực tế như xử lý người đang vẽ thoát đột ngột hoặc tự động bầu chọn lại Chủ phòng (*Host*).
+3. **Ứng dụng đa luồng và đồng bộ:** Server dùng Java 21 Virtual Threads và quản lý dữ liệu phòng; client chuyển DTO từ reader nền lên **JavaFX Application Thread**. Kế hoạch TV2 tách riêng hàng đợi xử lý trạng thái và writer của từng session.
+4. **Giao diện kiểm chứng luồng mạng:** Thiết kế **JavaFX Controls + Canvas** phục vụ demo và kiểm tra các trường hợp người vẽ thoát, bầu lại Host, đồng bộ phòng và điểm.
 
 ## 1.2. Mục tiêu và phạm vi của đề tài
 
@@ -99,7 +101,7 @@ Nhóm lựa chọn đề tài này cho tiểu luận môn **Lập trình mạng*
 ### Phạm vi
 - **Tầng giao tiếp mạng:** Sử dụng giao thức **TCP Socket (`java.net`)**, triển khai chạy trên môi trường mạng nội bộ (LAN/Wi-Fi) hoặc Localhost.
 - **Tầng lưu trữ dữ liệu:** Quản lý trạng thái các phiên kết nối và phòng chơi trực tiếp trên bộ nhớ khả biến (**In-Memory** thông qua `ConcurrentHashMap`) để tối ưu tốc độ phản hồi thời gian thực; kho từ vựng tiếng Anh được nạp từ tệp `statics/words_en.csv`.
-- **Tầng giao diện người dùng:** Xây dựng ứng dụng Desktop bằng **Java Swing, Java2D và FlatLaf**, đóng gói thành tệp `.jar` thực thi độc lập trên mọi hệ điều hành có cài đặt JDK 21.
+- **Tầng giao diện người dùng:** Thiết kế ứng dụng desktop bằng **JavaFX 21.0.13**, UI dựng bằng Java và Canvas/GraphicsContext. Client JAR cần JavaFX runtime trên module path; native runtime/installer đóng gói riêng theo OS/CPU, không coi một JAR chạy độc lập trên mọi hệ điều hành.
 
 ## 1.3. Bảng phân chia công việc
 
@@ -109,7 +111,7 @@ Dự án được phân chia đồng đều cho 3 thành viên trong nhóm theo 
 | :-: | :--- | :--- | :--- | :-: |
 | 1 | **Trần Hán Nam**<br/>`B23DCCN590` | - `source/pom.xml`<br/>- `common.protocol.*`<br/>- `server.net.*`<br/>- `server.handler.*`<br/>- `server.room.*` | - Thiết kế cấu trúc gói tin `NetworkMessage`, `MessageType` và bộ mã hóa/giải mã `JsonCodec` (NDJSON UTF-8).<br/>- Xây dựng `TcpServer` (`ServerSocket`) và `ClientSession` ứng dụng **Java 21 Virtual Threads**, đồng bộ luồng ghi `synchronized(writeLock)`, `TCP_NODELAY`, xử lý `PING`/`PONG` và ngắt kết nối.<br/>- Xây dựng bộ định tuyến `ServerPacketRouter`, hệ thống đa phòng `RoomManager` & `GameRoom` (sinh mã phòng 5 ký tự, chặn trùng tên, tự động chuyển quyền Host).<br/>- Viết Unit Test & Integration Test mạng (`JsonCodecTest`, `RoomManagerTest`, `TcpServerIntegrationTest`). | **33.3%** |
 | 2 | **Đàm Tiến Thành**<br/>`B23DCCN764` | - `common.util.*`<br/>- `statics/words_en.csv`<br/>- `server.game.*`<br/>- `client.ui.lobby.*`<br/>- `client.ui.chat.*` | - Xây dựng kho từ vựng tiếng Anh `WordRepository` (`words_en.csv`), tiện ích che từ khóa `WordMaskUtils` và tính khoảng cách chuỗi `LevenshteinUtils`.<br/>- Cài đặt máy trạng thái `GameEngine`, bộ đếm ngược phía Server `TurnScheduler` (`ScheduledExecutorService` 1s/tick, mở dần chữ cái gợi ý).<br/>- Xử lý nghiệp vụ kiểm tra đáp án qua mạng, báo *"Close guess!"*, chống lộ từ khóa và tính điểm tốc độ `ScoreService`.<br/>- Thiết kế giao diện `ConnectView`, `LobbyView`, khung `ChatGuessPanel`, bảng điểm `PlayerScorePanel` và màn hình tổng kết `GameOverDialog`. | **33.3%** |
-| 3 | **Đinh Minh Tuân**<br/>`B23DCCN880` | - `client.net.*`<br/>- `client.controller.*`<br/>- `client.ui.canvas.*`<br/>- `client.ui.game.*`<br/>- `CanvasSyncService` | - Xây dựng tầng mạng phía Client (`SocketClient`, luồng đọc bất đồng bộ `ServerReaderThread`) và bộ điều phối `ClientController` đồng bộ dữ liệu từ luồng Socket sang luồng giao diện **Swing EDT** (`SwingUtilities.invokeLater`).<br/>- Xây dựng bảng vẽ thời gian thực `DrawingCanvas` (`BufferedImage` + `Graphics2D` chống răng cưa), thanh công cụ `CanvasToolbar` (màu sắc, độ dày, tẩy, xóa bảng) và bộ lọc điểm chuột `StrokeThrottler`.<br/>- Cài đặt `CanvasSyncService` xác thực quyền vẽ và đồng bộ lịch sử nét vẽ (`CANVAS_SYNC`), tích hợp giao diện `FlatLaf` & `GameView`. | **33.3%** |
+| 3 | **Đinh Minh Tuân**<br/>`B23DCCN880` | - `client.net.*`<br/>- `client.controller.*`<br/>- `client.ui.canvas.*`<br/>- `client.ui.game.*`<br/>- `CanvasSyncService` | - Tầng mạng Client (`SocketClient`, `ServerReaderThread`) và `ClientController` chuyển cập nhật bằng `Platform.runLater` lên JavaFX Application Thread.<br/>- `DrawingCanvas` dùng Canvas/GraphicsContext, CanvasToolbar và StrokeThrottler; xử lý tọa độ logic, batch nét vẽ.<br/>- `CanvasSyncService` xác thực quyền và đồng bộ history; khung Stage/Scene, GameView và lifecycle Application. | **33.3%** |
 
 ---
 
@@ -240,11 +242,12 @@ Hệ thống sử dụng thư viện **Jackson (`com.fasterxml.jackson.databind`
 - **Lớp vỏ (`NetworkMessage`):** Chứa 3 trường cố định là `type` (kiểu bản tin), `timestamp` (thời điểm tạo) và `payload` (cây `JsonNode` tổng quát).
 - **Lớp ruột (`Payload DTO`):** Tùy thuộc vào giá trị của `message.type()`, bộ định tuyến sẽ giải mã nhánh `payload` sang lớp `record` tương ứng (ví dụ `ConnectReqDto`, `DrawStrokeDto`, `RoomUpdateDto`) bằng phương thức `MAPPER.convertValue(message.payload(), clazz)`.
 
-## 2.5. Lập trình Giao diện Đồ họa với Java Swing, Java2D, FlatLaf và Mô hình MVC
+## 2.5. Lập trình Giao diện Đồ họa với JavaFX, Canvas và Mô hình MVC
 
-- **Java Swing & FlatLaf:** Swing là bộ công cụ GUI chuẩn nằm sẵn trong JDK, đảm bảo tính khả chuyển tuyệt đối trên mọi hệ điều hành (Windows, macOS, Linux). Để khắc phục vẻ ngoài cũ kỹ của giao diện Swing mặc định, nhóm tích hợp thư viện **FlatLaf (`FlatIntelliJLaf`)**, mang lại phong cách thiết kế phẳng, bo góc sắc nét và hiện đại.
-- **Đồ họa 2D thời gian thực với `Java2D` (`BufferedImage` + `Graphics2D`):** Bảng vẽ không vẽ trực tiếp các nét rời rạc lên màn hình mỗi khi `paintComponent` được gọi, mà vẽ lên một bộ đệm ảnh trong bộ nhớ (`BufferedImage` off-screen buffer) với chế độ khử răng cưa (`RenderingHints.KEY_ANTIALIASING = VALUE_ANTIALIAS_ON`) và đầu bút tròn (`BasicStroke.CAP_ROUND`). Kỹ thuật *Double Buffering* này giúp bức tranh không bị nhấp nháy (flickering) và giữ nguyên nét vẽ khi thu phóng cửa sổ.
-- **Nguyên tắc EDT (Event Dispatch Thread):** Trong kiến trúc Client của nhóm, `ServerReaderThread` chỉ làm nhiệm vụ đọc dòng JSON từ Socket và giải mã thành đối tượng Java, sau đó ủy quyền toàn bộ việc cập nhật giao diện vào hàng đợi sự kiện của Swing bằng `SwingUtilities.invokeLater(...)`.
+- **JavaFX Controls và layout:** `BorderPane`, `GridPane`, `VBox`, `TextField`, `TextArea`, `TableView` tạo các màn hình; Stage/Scene quản lý cửa sổ. UI viết bằng Java, chưa dùng FXML để nhìn rõ constructor/callback. Dependency OpenJFX được khai báo qua Maven, không giả định JDK đã chứa JavaFX ([OpenJFX Maven](https://openjfx.io/openjfx-docs/maven)).
+- **Đồ họa bằng Canvas/GraphicsContext:** Canvas nhận thao tác chuột; GraphicsContext vẽ nét, màu, độ dày và xóa. Client giữ history để vẽ lại khi thay đổi kích thước bộ đệm và đồng bộ tọa độ logic với server. Worker chỉ gửi/nhận DTO; mọi thao tác canvas nằm trên FX thread.
+- **JavaFX Application Thread:** Reader parse packet trên background thread rồi controller dispatch bằng `Platform.runLater`. View nhận snapshot để hiển thị, phát callback qua ClientActions; engine server giữ luật và điểm. Các task UI phải ngắn; batch nét vẽ khi lưu lượng lớn ([Platform API](https://openjfx.io/javadoc/21/javafx.graphics/javafx/application/Platform.html)).
+- **Lifecycle:** Launcher gọi `Application.launch`, runtime gọi `start(Stage)` để dựng UI; `stop()` đóng socket và yêu cầu shutdown executor. Không chờ I/O lâu trên FX thread, không launch runtime lần nữa để mở dialog ([Application API](https://openjfx.io/javadoc/21/javafx.graphics/javafx/application/Application.html)).
 
 ---
 
@@ -347,7 +350,7 @@ flowchart TB
 
         subgraph ClientMod["Module: client (skribbl-client.jar)"]
             C1["com.skribbl.client.net<br/>(SocketClient, ServerReaderThread)"]
-            C2["com.skribbl.client.controller<br/>(ClientController - EDT Bridge)"]
+            C2["com.skribbl.client.controller<br/>(ClientController - FX Thread Bridge)"]
             C3["com.skribbl.client.ui<br/>(lobby/, canvas/, chat/, game/)"]
             C1 <--> C2 <--> C3
         end
@@ -509,9 +512,9 @@ Hệ thống được xây dựng và kiểm thử trên môi trường:
 - **Công cụ quản lý gói & xây dựng:** Apache Maven `3.9.11`.
 - **Thư viện bên thứ ba (khai báo tại `source/pom.xml`):**
   - `com.fasterxml.jackson.core:jackson-databind:2.17.2` (Xử lý JSON/NDJSON).
-  - `com.formdev:flatlaf:3.5.1` (Giao diện Swing hiện đại).
+  - Sau PFX: `org.openjfx:javafx-controls:21.0.13` và `org.openjfx:javafx-maven-plugin:0.0.8` (giao diện JavaFX; source POM cần được chuyển theo patch).
   - `org.junit.jupiter:junit-jupiter:5.10.3` (Kiểm thử đơn vị và tích hợp mạng).
-  - `org.apache.maven.plugins:maven-shade-plugin:3.6.0` (Đóng gói Fat-JAR thực thi độc lập).
+  - `org.apache.maven.plugins:maven-shade-plugin:3.6.0` (server JAR chứa dependency; client chứa common/Jackson, JavaFX runtime nạp ngoài theo PFX).
 
 Cấu hình `source/pom.xml` định nghĩa 3 module con (`common`, `server`, `client`) và khóa phiên bản biên dịch ở `<release>21</release>`, đảm bảo toàn bộ tính năng của Java 21 (`record`, Pattern Matching for `switch`, `Thread.ofVirtual()`) hoạt động đồng nhất.
 
@@ -689,8 +692,8 @@ public void send(NetworkMessage message) {
 
 ## 4.4. Cài đặt Nghiệp vụ Trò chơi, Đồng bộ Nét vẽ và Giao diện `client`
 
-- **Đồng bộ nét vẽ (`DRAW_STROKE`, `CLEAR_CANVAS`, `CANVAS_SYNC`):** Mỗi thao tác kéo chuột trên `DrawingCanvas` của người vẽ được chuyển hóa thành đối tượng bất biến `DrawStrokeDto(x1, y1, x2, y2, color, thickness, eraser)`. Phía Client vẽ trực tiếp đoạn thẳng lên `BufferedImage` cục bộ bằng `Graphics2D` với `BasicStroke(thickness, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)` để người vẽ có phản hồi tức thì (zero local latency), đồng thời gửi gói `DRAW_STROKE` qua `SocketClient` lên Server để phát cho các máy người đoán.
-- **Khởi tạo Giao diện Client (`ClientMain.java`):** Cài đặt giao diện `FlatIntelliJLaf.setup()` trước khi khởi tạo cửa sổ chính trên luồng sự kiện `SwingUtilities.invokeLater(...)`, đảm bảo toàn bộ cây thành phần giao diện (`ConnectView`, `LobbyView`, `GameView`, `DrawingCanvas`, `ChatGuessPanel`) tuân thủ nghiêm ngặt quy tắc an toàn luồng của Swing.
+- **Đồng bộ nét vẽ (`DRAW_STROKE`, `CLEAR_CANVAS`, `CANVAS_SYNC`):** Mouse event trên Canvas tạo DrawStrokeDto và vẽ local bằng GraphicsContext trên FX thread; StrokeThrottler giảm tần suất packet gửi nền. Server xác thực state/drawer trước khi ghi history và relay. Client nhận nét/snapshot qua reader nền rồi dispatch lên FX thread; reset lượt xóa cả lịch sử server và hình client.
+- **Khởi tạo client:** ClientMain là launcher gọi `Application.launch(ClientApplication.class, args)`. `ClientApplication.start(Stage)` dựng view/controller và Stage/Scene; worker gửi connect/chat và reader nhận NDJSON; `Platform.runLater` đưa packet vào presenter/canvas. `stop()` đóng socket và dừng executor theo hợp đồng PFX/P08.
 
 ## 4.5. Kiểm thử Tự động (Unit Test & TCP Integration Test với JUnit 5)
 
@@ -747,7 +750,7 @@ Khi khởi chạy máy chủ `java -jar source/server/target/skribbl-server.jar`
 ```
 
 > **[Vị trí chèn Hình 4.1 trong bản in Word/PDF]:** *Ảnh chụp màn hình cửa sổ Kết nối (`ConnectView`) và Sảnh chờ (`LobbyView`) hiển thị mã phòng 5 ký tự và danh sách người chơi.*  
-> **[Vị trí chèn Hình 4.2 trong bản in Word/PDF]:** *Ảnh chụp màn hình 3 cửa sổ Client đang chơi đồng thời: 1 cửa sổ Người vẽ (`Drawer`) đang vẽ trên bảng `Java2D` và 2 cửa sổ Người đoán (`Guesser`) nhận nét vẽ thời gian thực kèm khung Chat đoán từ.*  
+> **[Vị trí chèn Hình 4.2 trong bản in Word/PDF]:** *Ảnh chụp 3 client JavaFX: drawer vẽ trên Canvas và 2 guesser nhận nét, chat/điểm. Chỉ chèn ảnh sau khi đã chạy bản chuyển đổi.*
 > **[Vị trí chèn Hình 4.3 trong bản in Word/PDF]:** *Ảnh chụp màn hình kết thúc lượt (`TURN_END`) và bảng xếp hạng tổng kết cuối ván (`GAME_OVER`).*
 
 ---
@@ -778,7 +781,7 @@ Khi khởi chạy máy chủ `java -jar source/server/target/skribbl-server.jar`
 
 1. **Cơ chế Tự động kết nối lại (Session Reconnection):** Cấp mã `sessionToken` cho mỗi người chơi khi vào phòng; nếu mất mạng tạm thời dưới 30 giây, cho phép kết nối lại vào đúng vị trí cũ trong phòng và dùng bản tin `CANVAS_SYNC` để vẽ lại toàn bộ các nét đã có trên bảng.
 2. **Tích hợp Cơ sở dữ liệu (JDBC / SQLite hoặc PostgreSQL):** Lưu trữ tài khoản người chơi, thống kê tổng điểm tích lũy, lịch sử trận đấu và cho phép quản trị viên thêm/sửa bộ từ vựng trực tiếp.
-3. **Mở rộng Công cụ Đồ họa & Âm thanh:** Bổ sung thuật toán Flood Fill (BFS trên `BufferedImage`), chức năng Undo theo ngăn xếp nét vẽ (`Stack<List<StrokeData>>`), và hiệu ứng âm thanh khi đếm ngược hoặc đoán trúng từ khóa.
+3. **Mở rộng công cụ đồ họa và âm thanh:** Có thể nghiên cứu Flood Fill trên pixel buffer/WritableImage của JavaFX, Undo từ history StrokeData và âm thanh. Các tính năng này chưa thuộc bản TV2 tối thiểu; nếu thêm phải mở rộng hợp đồng đồng bộ server/client.
 4. **Bảo mật kênh truyền:** Nâng cấp `ServerSocket` và `Socket` lên `SSLServerSocket` và `SSLSocket` (`javax.net.ssl`) để mã hóa toàn bộ luồng bản tin NDJSON.
 
 ---
@@ -811,8 +814,8 @@ Khi khởi chạy máy chủ `java -jar source/server/target/skribbl-server.jar`
      - Nếu người thoát là `Host`, tự động lấy thành viên đầu tiên còn lại trong `players.keySet().iterator().next()` bầu làm Host mới (`withHost(true)`).
      - Nếu người thoát là `Drawer` đang vẽ, hủy lượt hiện tại và chuyển sang người vẽ kế tiếp; nếu phòng tụt xuống dưới 2 người thì đưa phòng về trạng thái chờ `RoomStatus.WAITING`.
 
-### Câu 6: Tại sao ở phía Client, luồng đọc Socket không được gọi trực tiếp các hàm sửa giao diện Swing mà phải dùng `SwingUtilities.invokeLater()`?
-- **Trả lời:** Các thành phần giao diện của Java Swing (như `JPanel`, `JLabel`, `JTextArea`) **không an toàn đa luồng (not thread-safe)** và được thiết kế để chỉ truy cập từ một luồng duy nhất là **EDT (Event Dispatch Thread)**. Nếu luồng `ServerReaderThread` cập nhật trực tiếp giao diện cùng lúc EDT đang vẽ lại màn hình, ứng dụng sẽ gặp lỗi tranh chấp dữ liệu (flickering, NullPointerException hoặc treo giao diện). Dùng `SwingUtilities.invokeLater(...)` giúp đẩy tác vụ cập nhật UI vào hàng đợi sự kiện chuẩn của EDT một cách an toàn.
+### Câu 6: Tại sao reader Socket dùng `Platform.runLater()` để cập nhật giao diện JavaFX?
+- **Trả lời:** Controls và canvas đang hoạt động phải được cập nhật trên JavaFX Application Thread. Reader chỉ parse DTO ở background thread; `Platform.runLater` xếp việc áp dụng DTO lên FX thread rồi trả về ngay. Network I/O và tác vụ lâu ở worker để UI không bị chặn; batch nét vẽ để không dồn quá nhiều runnable.
 
 ---
 
@@ -823,4 +826,4 @@ Khi khởi chạy máy chủ `java -jar source/server/target/skribbl-server.jar`
 3. Brian Goetz et al., *Java Concurrency in Practice*, Addison-Wesley Professional.
 4. Oracle Corporation, *Java SE 21 Documentation – Virtual Threads (JEP 444) & Socket Networking API*, https://docs.oracle.com/en/java/javase/21/.
 5. FasterXML, *Jackson Databind Documentation*, https://github.com/FasterXML/jackson-databind.
-6. FormDev Software, *FlatLaf – Flat Look and Feel for Java Swing*, https://www.formdev.com/flatlaf/.
+6. OpenJFX, [Getting Started with JavaFX](https://openjfx.io/openjfx-docs/), [Platform API](https://openjfx.io/javadoc/21/javafx.graphics/javafx/application/Platform.html), [Application lifecycle](https://openjfx.io/javadoc/21/javafx.graphics/javafx/application/Application.html).

@@ -4,6 +4,8 @@
 
 > 📘 *Mẫu README này là khung hướng dẫn. Sinh viên chỉ cần điền thông tin của nhóm và nội dung dự án theo từng mục.*
 
+> **Định hướng giao diện mới:** Client chuyển sang JavaFX 21.0.13. Tài liệu và code mẫu đã cập nhật; POM/ClientMain trong mã nguồn cần được chuyển theo [patch PFX](docs/tv2/05a-patch-javafx-setup.md) trước khi dùng các lệnh chạy JavaFX bên dưới.
+
 ---
 
 ## 🧑‍💻 THÔNG TIN NHÓM
@@ -11,8 +13,8 @@
 | STT | Họ và Tên | MSSV | Email | Đóng góp |
 |-----|-----------|------|-------|----------|
 | 1 | Trần Hán Nam | B23DCCN590 | namth.b23dccn590@stu.ptit.edu.vn | Hạ tầng TCP Server, Java 21 Virtual Threads, Giao thức NDJSON & Hệ thống Đa phòng |
-| 2 | Đàm Tiến Thành  | B23DCCN764 | b@example.com | ... |
-| 3 | Đinh Minh Tuân | B23DCCN880 | c@example.com | ... |
+| 2 | Đinh Minh Tuân | B23DCCN880 | tuandm.b23dccn880@stu.ptit.edu.vn | Game Engine, TurnScheduler (1s/tick), Gợi ý WordMask, So khớp Levenshtein, Tính điểm & Sảnh/Chat |
+| 3 | Đàm Tiến Thành | B23DCCN764 | thanhdt.b23dccn764@stu.ptit.edu.vn | Tầng mạng Client, SocketClient, Luồng đọc ServerReaderThread, JavaFX Application Thread, DrawingCanvas & StrokeThrottler |
 
 **Tên nhóm:** Nhóm 20 – Lập trình mạng  
 **Chủ đề đã đăng ký:** Skribbl clone
@@ -25,7 +27,7 @@ Hệ thống là ứng dụng trò chơi **vẽ và đoán từ khóa trực tuy
 
 - **Server:** Đóng vai trò trung tâm điều phối có thẩm quyền (*Server-Authoritative*), lắng nghe và phục vụ đồng thời nhiều kết nối Client. Server quản lý nhiều phòng chơi độc lập trên bộ nhớ (`RoomManager`), điều khiển máy trạng thái vòng đời ván đấu (`GameEngine`), đồng bộ đồng hồ đếm ngược, mở dần chữ cái gợi ý, kiểm tra đáp án tiếng Anh, tính điểm thưởng theo tốc độ đoán, chuyển tiếp nét vẽ thời gian thực và xử lý an toàn các tình huống ngắt kết nối đột ngột.
 - **Client:** Ứng dụng Desktop cung cấp giao diện tương tác trực quan gồm màn hình cấu hình kết nối (`IP/Port/Nickname`), sảnh chờ đa phòng (`Lobby`), bảng vẽ đồng bộ chống răng cưa (`DrawingCanvas`), thanh công cụ chọn màu/độ dày nét vẽ/tẩy/xóa bảng, khung trò chuyện kết hợp đoán từ và bảng xếp hạng điểm số trực tiếp.
-- **Cơ chế giao tiếp:** Hai phía trao đổi thông điệp theo giao thức tầng ứng dụng tự thiết kế sử dụng định dạng **NDJSON (Newline-Delimited JSON)** mã hóa `UTF-8` trên luồng TCP (`TCP_NODELAY`), kết hợp tách biệt luồng đọc/ghi mạng với luồng giao diện (*Swing EDT*) để đảm bảo độ mượt và an toàn đa luồng.
+- **Cơ chế giao tiếp:** Hai phía trao đổi thông điệp theo giao thức tầng ứng dụng tự thiết kế sử dụng định dạng **NDJSON (Newline-Delimited JSON)** mã hóa `UTF-8` trên luồng TCP (`TCP_NODELAY`), kết hợp tách biệt luồng đọc/ghi mạng với **JavaFX Application Thread**; controller chuyển cập nhật giao diện bằng `Platform.runLater`.
 
 **Cấu trúc logic tổng quát:**
 ```text
@@ -53,7 +55,7 @@ Hệ thống là ứng dụng trò chơi **vẽ và đoán từ khóa trực tuy
 | **Ngôn ngữ chính** | **Java 21** | Phát triển toàn bộ `common`, `server` và `client`; áp dụng OOP, `record`, đa luồng (`Virtual Threads`, `ScheduledExecutorService`). |
 | **Giao tiếp mạng** | **TCP Socket (`java.net`)** | Sử dụng `ServerSocket`, `Socket`, `BufferedReader`, `BufferedWriter` (`UTF-8`, `TCP_NODELAY`) trao đổi dữ liệu song công. |
 | **Định dạng bản tin** | **JSON + Jackson Databind** | Chuẩn hóa giao thức **NDJSON** giữa các module, thuận tiện kiểm tra và gỡ lỗi gói tin mạng. |
-| **Giao diện (Client)** | **Java Swing + Java2D + FlatLaf** | Xây dựng màn hình Lobby, bảng vẽ Canvas chống răng cưa, khung Chat, đồng hồ đếm ngược và bảng điểm hiện đại. |
+| **Giao diện (Client)** | **JavaFX 21.0.13 — Controls, Canvas/GraphicsContext** | Kế hoạch chuyển đổi: dựng UI bằng Java, dùng FX thread cho controls/canvas; xem patch PFX và P06–P08. |
 | **Lưu trữ dữ liệu** | **In-memory + CSV Dataset** | Quản lý trạng thái các phòng trên RAM (`ConcurrentHashMap`); nạp kho từ vựng tiếng Anh từ `statics/words_en.csv`. |
 | **Build & Kiểm thử** | **Maven + JUnit 5 + Git/GitHub** | Tổ chức Maven Multi-module, đóng gói thực thi `.jar`, viết Unit Test và quản lý phiên bản làm việc nhóm. |
 
@@ -67,9 +69,11 @@ Yêu cầu hệ thống: **JDK 21 LTS** và **Apache Maven 3.9+**.
 cd source
 mvn clean package -DskipTests
 ```
-Lệnh trên sẽ tự động đóng gói 2 file thực thi độc lập:
+Sau khi thực hiện cấu hình PFX, lệnh trên tạo các JAR:
 - Server: `source/server/target/skribbl-server.jar`
 - Client: `source/client/target/skribbl-client.jar`
+
+Server chứa dependency để chạy trực tiếp. Client chứa common/Jackson, còn JavaFX được nạp ngoài JAR bằng SDK/module path hoặc qua Maven khi phát triển.
 
 ### 2. Chạy Server
 Khởi động máy chủ TCP (mặc định lắng nghe trên cổng `8888`):
@@ -79,10 +83,20 @@ java -jar source/server/target/skribbl-server.jar
 *(Có thể truyền tham số cổng tùy chỉnh: `java -jar source/server/target/skribbl-server.jar 9090`)*
 
 ### 3. Chạy Client
-Mở giao diện Client:
-```bash
-java -jar source/client/target/skribbl-client.jar
+Sau khi chuyển POM/ClientMain theo PFX, chạy client trong lúc phát triển từ repo root:
+```powershell
+mvn -f source/pom.xml -pl common -am install
+mvn -f source/client/pom.xml compile javafx:run
 ```
+
+Chạy bản JAR với JavaFX SDK đúng OS/CPU, đổi đường dẫn ví dụ thành đường dẫn trên máy:
+
+```powershell
+$javafxLib = 'C:\Tools\javafx-sdk-21.0.13\lib'
+java --module-path "$javafxLib" --add-modules javafx.controls -jar source/client/target/skribbl-client.jar
+```
+
+Chi tiết dependency, lifecycle và đóng gói tại [PFX](docs/tv2/05a-patch-javafx-setup.md). Các lệnh này là hướng dẫn sau chuyển đổi, chưa xác nhận source hiện tại đã chạy JavaFX.
 
 ### 4. Kiểm thử tự động (JUnit 5)
 Chạy toàn bộ Unit Test và Integration Test mạng:
@@ -167,7 +181,7 @@ skribbl-app/
         ├── pom.xml
         └── src/main/java/com/skribbl/client/
             ├── net/                   # Kết nối SocketClient và luồng đọc dữ liệu bất đồng bộ
-            ├── controller/            # Điều phối sự kiện từ luồng mạng sang giao diện Swing EDT
+            ├── controller/            # Điều phối sự kiện từ luồng mạng sang JavaFX Application Thread
             └── ui/                    # Giao diện người dùng (lobby/, canvas/, chat/, game/)
 ```
 
