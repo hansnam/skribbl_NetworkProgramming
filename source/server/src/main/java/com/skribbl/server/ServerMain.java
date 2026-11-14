@@ -1,5 +1,6 @@
 package com.skribbl.server;
 
+import com.skribbl.server.game.ServerEventLoop;
 import com.skribbl.server.handler.ServerPacketRouter;
 import com.skribbl.server.net.TcpServer;
 import com.skribbl.server.room.RoomManager;
@@ -31,20 +32,24 @@ public class ServerMain {
         RoomManager roomManager = new RoomManager();
         ServerPacketRouter packetRouter = new ServerPacketRouter(roomManager);
 
+        ServerEventLoop events = new ServerEventLoop();
+
         TcpServer server = new TcpServer(port);
         server.setHandlers(
-                packetRouter::route,
-                session -> {
-                    System.out.printf("[Server] Session disconnected: %s (%s)%n",
-                            session.getSessionId(), session.getNickname());
-                    roomManager.handleDisconnect(session);
-                }
+                (session, message) -> {
+                    if (!events.execute(() -> {
+                        if (session.isConnected())
+                            packetRouter.route(session, message);
+                    })) session.close();
+                },
+                session -> events.execute(() -> roomManager.handleDisconnect(session))
         );
 
         // Register JVM Shutdown Hook
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("[Server] Shutting down server gracefully...");
             server.stop();
+            events.close();
         }, "server-shutdown-hook"));
 
         try {

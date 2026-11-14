@@ -32,6 +32,17 @@
 
     <build>
         <finalName>skribbl-server</finalName>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/../../statics</directory>
+                <includes>
+                    <include>words_en.csv</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
