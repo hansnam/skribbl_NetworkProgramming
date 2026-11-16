@@ -1,3 +1,9 @@
 package com.skribbl.common.dto;
 
-public record ChooseWordDto(String turnId, int choiceIndex) {}
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public record ChooseWordDto(
+        @JsonProperty("turnId") String turnId,
+        @JsonProperty("choiceIndex") int choiceIndex
+) {
+}

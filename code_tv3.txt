@@ -1,0 +1,1341 @@
+﻿=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\CanvasSyncDto.java ===
+package com.skribbl.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.skribbl.common.model.StrokeData;
+
+import java.util.List;
+
+public record CanvasSyncDto(
+        @JsonProperty("strokes") List<StrokeData> strokes
+) {
+    public CanvasSyncDto {
+        if (strokes == null) {
+            strokes = List.of();
+        }
+    }
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\ChatKind.java ===
+package com.skribbl.common.dto;
+
+public enum ChatKind {
+    NORMAL,
+    SYSTEM,
+    CLOSE_GUESS
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\ChatMessageDto.java ===
+package com.skribbl.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public record ChatMessageDto(
+        @JsonProperty("sender") String sender,
+        @JsonProperty("text") String text,
+        @JsonProperty("kind") ChatKind kind
+) {
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\ChatSendDto.java ===
+package com.skribbl.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public record ChatSendDto(
+        @JsonProperty("text") String text
+) {
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\ChooseWordDto.java ===
+package com.skribbl.common.dto;
+
+public record ChooseWordDto(String turnId, int choiceIndex) {}
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\ConnectAckDto.java ===
+package com.skribbl.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public record ConnectAckDto(
+        @JsonProperty("playerId") String playerId,
+        @JsonProperty("nickname") String nickname
+) {
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\ConnectReqDto.java ===
+package com.skribbl.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public record ConnectReqDto(
+        @JsonProperty("nickname") String nickname
+) {
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\CreateRoomReqDto.java ===
+package com.skribbl.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public record CreateRoomReqDto(
+        @JsonProperty("maxRounds") int maxRounds,
+        @JsonProperty("drawTimeSec") int drawTimeSec
+) {
+    public CreateRoomReqDto {
+        if (maxRounds <= 0) maxRounds = 3;
+        if (drawTimeSec <= 0) drawTimeSec = 60;
+    }
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\DrawStrokeDto.java ===
+package com.skribbl.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.skribbl.common.model.StrokeData;
+
+public record DrawStrokeDto(
+        @JsonProperty("x1") double x1,
+        @JsonProperty("y1") double y1,
+        @JsonProperty("x2") double x2,
+        @JsonProperty("y2") double y2,
+        @JsonProperty("color") String color,
+        @JsonProperty("thickness") int thickness,
+        @JsonProperty("eraser") boolean eraser
+) {
+    public StrokeData toStrokeData() {
+        return new StrokeData(x1, y1, x2, y2, color, thickness, eraser);
+    }
+
+    public static DrawStrokeDto fromStrokeData(StrokeData s) {
+        return new DrawStrokeDto(s.x1(), s.y1(), s.x2(), s.y2(), s.color(), s.thickness(), s.eraser());
+    }
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\ErrorMsgDto.java ===
+package com.skribbl.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public record ErrorMsgDto(
+        @JsonProperty("code") String code,
+        @JsonProperty("message") String message
+) {
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\GameOverDto.java ===
+package com.skribbl.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.skribbl.common.model.PlayerDto;
+
+import java.util.List;
+
+public record GameOverDto(
+        @JsonProperty("winners") List<PlayerDto> winners,
+        @JsonProperty("players") List<PlayerDto> players
+) {
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\JoinRoomReqDto.java ===
+package com.skribbl.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public record JoinRoomReqDto(
+        @JsonProperty("roomCode") String roomCode
+) {
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\PlayerGuessedDto.java ===
+package com.skribbl.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.skribbl.common.model.PlayerDto;
+
+import java.util.List;
+
+public record PlayerGuessedDto(
+        @JsonProperty("playerId") String playerId,
+        @JsonProperty("nickname") String nickname,
+        @JsonProperty("awardedPoints") int awardedPoints,
+        @JsonProperty("drawerBonus") int drawerBonus,
+        @JsonProperty("players") List<PlayerDto> players
+) {
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\RoomUpdateDto.java ===
+package com.skribbl.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.skribbl.common.model.PlayerDto;
+import com.skribbl.common.model.RoomStatus;
+
+import java.util.List;
+
+public record RoomUpdateDto(
+        @JsonProperty("roomCode") String roomCode,
+        @JsonProperty("hostId") String hostId,
+        @JsonProperty("status") RoomStatus status,
+        @JsonProperty("players") List<PlayerDto> players,
+        @JsonProperty("maxRounds") int maxRounds,
+        @JsonProperty("drawTimeSec") int drawTimeSec,
+        @JsonProperty("currentRound") int currentRound
+) {
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\TimerUpdateDto.java ===
+package com.skribbl.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public record TimerUpdateDto(
+        @JsonProperty("remainingSec") int remainingSec,
+        @JsonProperty("wordMask") String wordMask
+) {
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\TurnEndDto.java ===
+package com.skribbl.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.skribbl.common.model.PlayerDto;
+
+import java.util.List;
+import java.util.Map;
+
+public record TurnEndDto(
+        @JsonProperty("word") String word,
+        @JsonProperty("reason") String reason,
+        @JsonProperty("turnScores") Map<String, Integer> turnScores,
+        @JsonProperty("players") List<PlayerDto> players
+) {
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\TurnStartDto.java ===
+package com.skribbl.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public record TurnStartDto(
+        @JsonProperty("round") int round,
+        @JsonProperty("maxRounds") int maxRounds,
+        @JsonProperty("drawerId") String drawerId,
+        @JsonProperty("drawerNickname") String drawerNickname,
+        @JsonProperty("wordDisplay") String wordDisplay,
+        @JsonProperty("drawTimeSec") int drawTimeSec
+) {
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\dto\WordChoicesDto.java ===
+package com.skribbl.common.dto;
+
+import java.util.List;
+
+public record WordChoicesDto(String turnId, List<String> choices, int chooseSeconds) {}
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\model\PlayerDto.java ===
+package com.skribbl.common.model;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+/**
+ * Immutable data transfer object representing a player's state in a room.
+ */
+public record PlayerDto(
+        @JsonProperty("id") String id,
+        @JsonProperty("nickname") String nickname,
+        @JsonProperty("score") int score,
+        @JsonProperty("isHost") boolean isHost,
+        @JsonProperty("isDrawer") boolean isDrawer,
+        @JsonProperty("hasGuessed") boolean hasGuessed
+) {
+    public PlayerDto withScore(int newScore) {
+        return new PlayerDto(id, nickname, newScore, isHost, isDrawer, hasGuessed);
+    }
+
+    public PlayerDto withHost(boolean newIsHost) {
+        return new PlayerDto(id, nickname, score, newIsHost, isDrawer, hasGuessed);
+    }
+
+    public PlayerDto withDrawer(boolean newIsDrawer) {
+        return new PlayerDto(id, nickname, score, isHost, newIsDrawer, hasGuessed);
+    }
+
+    public PlayerDto withGuessed(boolean newHasGuessed) {
+        return new PlayerDto(id, nickname, score, isHost, isDrawer, newHasGuessed);
+    }
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\model\RoomStatus.java ===
+package com.skribbl.common.model;
+
+/**
+ * Lifecycle states of a GameRoom.
+ */
+public enum RoomStatus {
+    WAITING,
+    WORD_SELECTION,
+    DRAWING,
+    TURN_REVEAL,
+    GAME_OVER
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\model\StrokeData.java ===
+package com.skribbl.common.model;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+/**
+ * Represents a single stroke segment drawn on the canvas.
+ */
+public record StrokeData(
+        @JsonProperty("x1") double x1,
+        @JsonProperty("y1") double y1,
+        @JsonProperty("x2") double x2,
+        @JsonProperty("y2") double y2,
+        @JsonProperty("color") String color,
+        @JsonProperty("thickness") int thickness,
+        @JsonProperty("eraser") boolean eraser
+) {
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\protocol\JsonCodec.java ===
+package com.skribbl.common.protocol;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+
+import java.io.IOException;
+
+/**
+ * High-performance, thread-safe JSON Codec for NDJSON (Newline-Delimited JSON) protocol.
+ * Ensures every serialized message is on a single line without formatting breaks.
+ */
+public final class JsonCodec {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    static {
+        MAPPER.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        MAPPER.configure(SerializationFeature.INDENT_OUTPUT, false);
+    }
+
+    private JsonCodec() {
+        // Utility class
+    }
+
+    /**
+     * @return Underlying configured ObjectMapper instance
+     */
+    public static ObjectMapper getMapper() {
+        return MAPPER;
+    }
+
+    /**
+     * Serializes a NetworkMessage into a single-line JSON string.
+     *
+     * @param message Message to serialize
+     * @return Single line JSON string
+     * @throws JsonProcessingException if serialization fails
+     */
+    public static String serialize(NetworkMessage message) throws JsonProcessingException {
+        return MAPPER.writeValueAsString(message);
+    }
+
+    /**
+     * Convenience method to wrap type and payload into a NetworkMessage and serialize to JSON.
+     *
+     * @param type MessageType
+     * @param payload Object payload (can be null)
+     * @return Single line JSON string
+     * @throws JsonProcessingException if serialization fails
+     */
+    public static String serializeMessage(MessageType type, Object payload) throws JsonProcessingException {
+        JsonNode node = payload != null ? MAPPER.valueToTree(payload) : null;
+        NetworkMessage msg = NetworkMessage.of(type, node);
+        return serialize(msg);
+    }
+
+    /**
+     * Deserializes a single-line JSON string into a NetworkMessage envelope.
+     *
+     * @param jsonLine Line of JSON received from socket
+     * @return Parsed NetworkMessage
+     * @throws IOException if parsing fails or invalid JSON
+     */
+    public static NetworkMessage deserialize(String jsonLine) throws IOException {
+        if (jsonLine == null || jsonLine.isBlank()) {
+            throw new IllegalArgumentException("JSON line cannot be null or blank");
+        }
+        return MAPPER.readValue(jsonLine, NetworkMessage.class);
+    }
+
+    /**
+     * Decodes the payload of a NetworkMessage into a concrete target class (e.g. record/DTO).
+     *
+     * @param message NetworkMessage containing the payload
+     * @param clazz Target class
+     * @param <T> Target type
+     * @return Decoded payload object
+     */
+    public static <T> T decodePayload(NetworkMessage message, Class<T> clazz) {
+        if (message == null || message.payload() == null || message.payload().isNull()) {
+            return null;
+        }
+        return MAPPER.convertValue(message.payload(), clazz);
+    }
+
+    /**
+     * Decodes the payload into a generic type via TypeReference.
+     */
+    public static <T> T decodePayload(NetworkMessage message, TypeReference<T> typeRef) {
+        if (message == null || message.payload() == null || message.payload().isNull()) {
+            return null;
+        }
+        return MAPPER.convertValue(message.payload(), typeRef);
+    }
+
+    /**
+     * Converts any Java object to a Jackson JsonNode tree.
+     */
+    public static JsonNode toNode(Object object) {
+        if (object == null) {
+            return null;
+        }
+        return MAPPER.valueToTree(object);
+    }
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\protocol\MessageType.java ===
+package com.skribbl.common.protocol;
+
+/**
+ * Enumeration of all network message types exchanged between Client and Server.
+ * Defined according to the Skribbl NDJSON protocol specification.
+ */
+public enum MessageType {
+    // Connection Lifecycle
+    CONNECT_REQ,
+    CONNECT_ACK,
+    PING,
+    PONG,
+
+    // Room & Lobby Management
+    CREATE_ROOM,
+    JOIN_ROOM,
+    LEAVE_ROOM,
+    ROOM_UPDATE,
+    START_GAME,
+
+    // Game Flow & Word Selection
+    WORD_CHOICES,
+    CHOOSE_WORD,
+    TURN_START,
+    TIMER_UPDATE,
+    TURN_END,
+    GAME_OVER,
+
+    // Real-time Canvas Drawing
+    DRAW_STROKE,
+    CLEAR_CANVAS,
+    CANVAS_SYNC,
+
+    // Chat & Guessing
+    CHAT_SEND,
+    CHAT_MESSAGE,
+    PLAYER_GUESSED,
+
+    // System & Errors
+    ERROR_MSG
+}
+
+=== C:\SkribblNhom20\source\common\src\main\java\com\skribbl\common\protocol\NetworkMessage.java ===
+package com.skribbl.common.protocol;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.NullNode;
+
+/**
+ * Standard protocol envelope wrapping every NDJSON message exchanged over TCP.
+ * Formatted as a single JSON line terminated by newline (\n).
+ *
+ * @param type Message identifier matching {@link MessageType}
+ * @param timestamp Epoch millisecond timestamp when the message was created
+ * @param payload JSON data specific to the message type
+ */
+public record NetworkMessage(
+        @JsonProperty("type") MessageType type,
+        @JsonProperty("timestamp") long timestamp,
+        @JsonProperty("payload") JsonNode payload
+) {
+    @JsonCreator
+    public NetworkMessage {
+        if (payload == null) {
+            payload = NullNode.getInstance();
+        }
+    }
+
+    public static NetworkMessage of(MessageType type, JsonNode payload) {
+        return new NetworkMessage(type, System.currentTimeMillis(), payload);
+    }
+
+    public static NetworkMessage of(MessageType type) {
+        return new NetworkMessage(type, System.currentTimeMillis(), NullNode.getInstance());
+    }
+}
+
+=== C:\SkribblNhom20\source\common\src\test\java\com\skribbl\common\protocol\JsonCodecTest.java ===
+package com.skribbl.common.protocol;
+
+import com.skribbl.common.dto.ConnectReqDto;
+import com.skribbl.common.dto.DrawStrokeDto;
+import com.skribbl.common.dto.RoomUpdateDto;
+import com.skribbl.common.model.PlayerDto;
+import com.skribbl.common.model.RoomStatus;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class JsonCodecTest {
+
+    @Test
+    @DisplayName("Should serialize NetworkMessage to single-line JSON without line breaks")
+    void testSerializationSingleLine() throws IOException {
+        ConnectReqDto req = new ConnectReqDto("PlayerOne");
+        String json = JsonCodec.serializeMessage(MessageType.CONNECT_REQ, req);
+
+        assertNotNull(json);
+        assertFalse(json.contains("\n"), "Serialized JSON must not contain newlines");
+        assertFalse(json.contains("\r"), "Serialized JSON must not contain carriage returns");
+        assertTrue(json.contains("CONNECT_REQ"));
+        assertTrue(json.contains("PlayerOne"));
+    }
+
+    @Test
+    @DisplayName("Should deserialize JSON line and decode payload cleanly")
+    void testDeserializationAndPayloadDecoding() throws IOException {
+        DrawStrokeDto stroke = new DrawStrokeDto(10.5, 20.0, 35.2, 40.8, "#FF0000", 4, false);
+        String json = JsonCodec.serializeMessage(MessageType.DRAW_STROKE, stroke);
+
+        NetworkMessage msg = JsonCodec.deserialize(json);
+        assertEquals(MessageType.DRAW_STROKE, msg.type());
+        assertTrue(msg.timestamp() > 0);
+
+        DrawStrokeDto decoded = JsonCodec.decodePayload(msg, DrawStrokeDto.class);
+        assertNotNull(decoded);
+        assertEquals(10.5, decoded.x1(), 0.001);
+        assertEquals("#FF0000", decoded.color());
+        assertEquals(4, decoded.thickness());
+        assertFalse(decoded.eraser());
+    }
+
+    @Test
+    @DisplayName("Should serialize and deserialize complex RoomUpdateDto with nested player list")
+    void testComplexPayload() throws IOException {
+        PlayerDto p1 = new PlayerDto("p1", "Alice", 150, true, false, false);
+        PlayerDto p2 = new PlayerDto("p2", "Bob", 200, false, true, true);
+        RoomUpdateDto update = new RoomUpdateDto("ROOM1", "p1", RoomStatus.DRAWING, List.of(p1, p2), 3, 80, 1);
+
+        String json = JsonCodec.serializeMessage(MessageType.ROOM_UPDATE, update);
+        NetworkMessage msg = JsonCodec.deserialize(json);
+
+        assertEquals(MessageType.ROOM_UPDATE, msg.type());
+        RoomUpdateDto decoded = JsonCodec.decodePayload(msg, RoomUpdateDto.class);
+        assertNotNull(decoded);
+        assertEquals("ROOM1", decoded.roomCode());
+        assertEquals("p1", decoded.hostId());
+        assertEquals(RoomStatus.DRAWING, decoded.status());
+        assertEquals(2, decoded.players().size());
+        assertEquals("Alice", decoded.players().get(0).nickname());
+        assertTrue(decoded.players().get(0).isHost());
+        assertTrue(decoded.players().get(1).isDrawer());
+    }
+
+    @Test
+    @DisplayName("Should handle null payload gracefully")
+    void testNullPayload() throws IOException {
+        NetworkMessage msg = NetworkMessage.of(MessageType.LEAVE_ROOM);
+        String json = JsonCodec.serialize(msg);
+
+        NetworkMessage deserialized = JsonCodec.deserialize(json);
+        assertEquals(MessageType.LEAVE_ROOM, deserialized.type());
+        assertTrue(deserialized.payload().isNull());
+    }
+
+    @Test
+    @DisplayName("Should throw exception when parsing malformed JSON")
+    void testMalformedJson() {
+        assertThrows(IOException.class, () -> JsonCodec.deserialize("{not valid json}"));
+        assertThrows(IllegalArgumentException.class, () -> JsonCodec.deserialize(""));
+        assertThrows(IllegalArgumentException.class, () -> JsonCodec.deserialize(null));
+    }
+}
+
+=== C:\SkribblNhom20\source\client\src\main\java\com\skribbl\client\ClientMain.java ===
+package com.skribbl.client;
+
+import com.skribbl.client.controller.ClientController;
+import com.skribbl.client.ui.game.GameView;
+import javafx.application.Application;
+import javafx.geometry.Rectangle2D;
+import javafx.scene.Scene;
+import javafx.stage.Screen;
+import javafx.stage.Stage;
+
+import java.util.UUID;
+
+public class ClientMain extends Application {
+    private static final String SERVER_HOST = "127.0.0.1";
+    private static final int SERVER_PORT = 8888;
+
+    private ClientController controller;
+
+    @Override
+    public void start(Stage primaryStage) {
+        String nickname = "Player_" + UUID.randomUUID().toString().substring(0, 4);
+
+        controller = new ClientController(nickname);
+        GameView gameView = new GameView(controller);
+        controller.setGameView(gameView);
+
+        // Tá»± Ä‘á»™ng tÃ­nh kÃ­ch thÆ°á»›c cá»­a sá»• vá»«a vá»›i mÃ n hÃ¬nh hiá»‡n táº¡i (85% chiá»u rá»™ng/cao, tá»‘i Ä‘a 1150x680)
+        Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
+        double initialWidth = Math.min(1150, screenBounds.getWidth() * 0.85);
+        double initialHeight = Math.min(680, screenBounds.getHeight() * 0.85);
+
+        Scene scene = new Scene(gameView, initialWidth, initialHeight);
+        primaryStage.setTitle("Skribbl Client - " + nickname);
+        primaryStage.setScene(scene);
+
+        // Cho phÃ©p thu nhá», phÃ³ng to vÃ  kÃ©o thay Ä‘á»•i kÃ­ch thÆ°á»›c tá»± do
+        primaryStage.setResizable(true);
+        primaryStage.setMinWidth(760);
+        primaryStage.setMinHeight(480);
+
+        primaryStage.setOnCloseRequest(event -> controller.shutdown());
+        primaryStage.show();
+
+       try {
+            controller.connectToServer(SERVER_HOST, SERVER_PORT);
+            gameView.getDrawingCanvas().setDrawingEnabled(true);
+        } catch (Exception e) {
+            gameView.appendChatMessage("[Lá»—i] KhÃ´ng thá»ƒ káº¿t ná»‘i tá»›i Server: " + e.getMessage());
+            gameView.getDrawingCanvas().setDrawingEnabled(true);
+        }
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}
+=== C:\SkribblNhom20\source\client\src\main\java\com\skribbl\client\controller\ClientController.java ===
+package com.skribbl.client.controller;
+
+import com.skribbl.client.net.SocketClient;
+import com.skribbl.client.ui.game.GameView;
+import com.skribbl.client.ui.game.WordChoiceDialog;
+import com.skribbl.common.dto.CanvasSyncDto;
+import com.skribbl.common.dto.ChatMessageDto;
+import com.skribbl.common.dto.ChatSendDto;
+import com.skribbl.common.dto.ChooseWordDto;
+import com.skribbl.common.dto.ConnectReqDto;
+import com.skribbl.common.dto.DrawStrokeDto;
+import com.skribbl.common.dto.TurnStartDto;
+import com.skribbl.common.dto.WordChoicesDto;
+import com.skribbl.common.protocol.JsonCodec;
+import com.skribbl.common.protocol.MessageType;
+import com.skribbl.common.protocol.NetworkMessage;
+import javafx.application.Platform;
+import javafx.scene.control.Alert;
+
+import java.io.IOException;
+
+public class ClientController {
+    private final SocketClient socketClient;
+    private final String nickname;
+    private volatile String playerId;
+    private volatile boolean canDraw = false;
+    private GameView gameView;
+
+    public ClientController(String nickname) {
+        this.nickname = nickname;
+        this.socketClient = new SocketClient();
+    }
+
+    public void setGameView(GameView gameView) {
+        this.gameView = gameView;
+    }
+
+    public void connectToServer(String host, int port) throws IOException {
+        socketClient.connect(host, port, this);
+        socketClient.send(MessageType.CONNECT_REQ, new ConnectReqDto(nickname));
+    }
+
+    public void sendDrawStroke(DrawStrokeDto dto) {
+        if (!canDraw) return;
+        socketClient.send(MessageType.DRAW_STROKE, dto);
+    }
+
+    public void sendClearCanvas() {
+        if (!canDraw) return;
+        socketClient.send(MessageType.CLEAR_CANVAS, null);
+    }
+
+    public void sendChat(String text) {
+        if (text == null || text.isBlank()) return;
+        socketClient.send(MessageType.CHAT_SEND, new ChatSendDto(text.trim()));
+    }
+
+    /**
+     * Nháº­n NetworkMessage tá»« ServerReaderThread vÃ  Ä‘áº©y cáº­p nháº­t UI vÃ o Platform.runLater().
+     */
+    public void handleIncomingMessage(NetworkMessage msg) {
+        if (msg == null || msg.type() == null) return;
+
+        switch (msg.type()) {
+            case CONNECT_ACK -> {
+                this.playerId = msg.payload().path("playerId").asText(nickname);
+                Platform.runLater(() -> {
+                    if (gameView != null) {
+                        gameView.appendChatMessage("[Há»‡ thá»‘ng] Káº¿t ná»‘i thÃ nh cÃ´ng (ID: " + playerId + ")");
+                    }
+                });
+            }
+            case DRAW_STROKE -> {
+                DrawStrokeDto stroke = JsonCodec.decodePayload(msg, DrawStrokeDto.class);
+                if (stroke != null) {
+                    Platform.runLater(() -> {
+                        if (gameView != null) gameView.getDrawingCanvas().renderRemoteStroke(stroke);
+                    });
+                }
+            }
+            case CANVAS_SYNC -> {
+                CanvasSyncDto syncDto = JsonCodec.decodePayload(msg, CanvasSyncDto.class);
+                if (syncDto != null) {
+                    Platform.runLater(() -> {
+                        if (gameView != null) gameView.getDrawingCanvas().renderSyncHistory(syncDto.strokes());
+                    });
+                }
+            }
+            case CLEAR_CANVAS -> Platform.runLater(() -> {
+                if (gameView != null) gameView.getDrawingCanvas().clearCanvasLocal();
+            });
+            case WORD_CHOICES -> {
+                WordChoicesDto choices = JsonCodec.decodePayload(msg, WordChoicesDto.class);
+                if (choices != null) {
+                    Platform.runLater(() -> showWordChoicePopup(choices));
+                }
+            }
+            case TURN_START -> {
+                TurnStartDto turn = JsonCodec.decodePayload(msg, TurnStartDto.class);
+                if (turn != null) {
+                    this.canDraw = playerId != null && playerId.equals(turn.drawerId());
+                    Platform.runLater(() -> {
+                        if (gameView != null) {
+                            gameView.getDrawingCanvas().clearCanvasLocal();
+                            gameView.getDrawingCanvas().setDrawingEnabled(canDraw);
+                            String roleText = canDraw
+                                    ? "VÃ²ng " + turn.round() + "/" + turn.maxRounds() + " - LÆ°á»£t báº¡n váº½!"
+                                    : "VÃ²ng " + turn.round() + "/" + turn.maxRounds() + " - NgÆ°á»i váº½: " + turn.drawerNickname();
+                            gameView.getTopStatusBar().updateTurnInfo(roleText, turn.wordDisplay(), turn.drawTimeSec());
+                        }
+                    });
+                }
+            }
+            case TIMER_UPDATE -> {
+                int remaining = msg.payload().path("remainingSec").asInt(-1);
+                String mask = msg.payload().path("wordMask").asText("");
+                Platform.runLater(() -> {
+                    if (gameView != null && remaining >= 0) {
+                        gameView.getTopStatusBar().updateTimerAndMask(remaining, mask, canDraw);
+                    }
+                });
+            }
+            case CHAT_MESSAGE -> {
+                ChatMessageDto chat = JsonCodec.decodePayload(msg, ChatMessageDto.class);
+                if (chat != null) {
+                    Platform.runLater(() -> {
+                        if (gameView != null) {
+                            gameView.appendChatMessage(chat.sender() + ": " + chat.text());
+                        }
+                    });
+                }
+            }
+            case TURN_END -> {
+                String answer = msg.payload().path("word").asText("");
+                this.canDraw = false;
+                Platform.runLater(() -> {
+                    if (gameView != null) {
+                        gameView.getDrawingCanvas().setDrawingEnabled(false);
+                        gameView.appendChatMessage("[Há»‡ thá»‘ng] Háº¿t lÆ°á»£t! ÄÃ¡p Ã¡n lÃ : " + answer);
+                    }
+                });
+            }
+            case ERROR_MSG -> {
+                String errText = msg.payload().path("message").asText("Lá»—i tá»« Server");
+                Platform.runLater(() -> {
+                    if (gameView != null) gameView.appendChatMessage("[Lá»—i] " + errText);
+                });
+            }
+            default -> {
+            }
+        }
+    }
+
+    private void showWordChoicePopup(WordChoicesDto dto) {
+        WordChoiceDialog dialog = new WordChoiceDialog(dto.choices());
+        dialog.showAndWait().ifPresent(chosenIndex ->
+                socketClient.send(MessageType.CHOOSE_WORD, new ChooseWordDto(dto.turnId(), chosenIndex))
+        );
+    }
+
+    public void onConnectionLost(String reason) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Máº¥t káº¿t ná»‘i máº¡ng");
+            alert.setHeaderText("KhÃ´ng thá»ƒ duy trÃ¬ káº¿t ná»‘i tá»›i Server");
+            alert.setContentText(reason);
+            alert.showAndWait();
+        });
+    }
+
+    public void shutdown() {
+        socketClient.disconnect();
+    }
+}
+=== C:\SkribblNhom20\source\client\src\main\java\com\skribbl\client\net\ServerReaderThread.java ===
+package com.skribbl.client.net;
+
+import com.skribbl.client.controller.ClientController;
+import com.skribbl.common.protocol.JsonCodec;
+import com.skribbl.common.protocol.NetworkMessage;
+
+import java.io.BufferedReader;
+import java.io.EOFException;
+import java.io.IOException;
+import java.net.SocketException;
+
+/**
+ * Luá»“ng ná»n Ä‘á»c báº¥t Ä‘á»“ng bá»™ tá»«ng dÃ²ng NDJSON tá»« Server mÃ  khÃ´ng lÃ m Ä‘Æ¡ giao diá»‡n JavaFX.
+ */
+public class ServerReaderThread extends Thread {
+    private final BufferedReader reader;
+    private final ClientController controller;
+    private volatile boolean running = true;
+
+    public ServerReaderThread(BufferedReader reader, ClientController controller) {
+        super("Skribbl-ServerReader");
+        this.reader = reader;
+        this.controller = controller;
+        setDaemon(true);
+    }
+
+    @Override
+    public void run() {
+        try {
+            String jsonLine;
+            while (running && (jsonLine = reader.readLine()) != null) {
+                if (jsonLine.isBlank()) continue;
+                try {
+                    NetworkMessage message = JsonCodec.deserialize(jsonLine);
+                    controller.handleIncomingMessage(message);
+                } catch (Exception parseEx) {
+                    System.err.println("[Client] Lá»—i giáº£i mÃ£ JSON: " + parseEx.getMessage());
+                }
+            }
+            // readLine() tráº£ vá» null nghÄ©a lÃ  Server Ä‘Ã£ Ä‘Ã³ng luá»“ng (EOF)
+            if (running) {
+                throw new EOFException("Server Ä‘Ã£ Ä‘Ã³ng káº¿t ná»‘i (EOF).");
+            }
+        } catch (EOFException eof) {
+            if (running) controller.onConnectionLost("Server Ä‘Ã£ ngáº¯t káº¿t ná»‘i (EOF).");
+        } catch (SocketException se) {
+            if (running) controller.onConnectionLost("Máº¥t káº¿t ná»‘i Socket tá»›i Server: " + se.getMessage());
+        } catch (IOException ioe) {
+            if (running) controller.onConnectionLost("Lá»—i Ä‘á»c luá»“ng dá»¯ liá»‡u máº¡ng: " + ioe.getMessage());
+        }
+    }
+
+    public void stopReading() {
+        running = false;
+        interrupt();
+    }
+}
+=== C:\SkribblNhom20\source\client\src\main\java\com\skribbl\client\net\SocketClient.java ===
+package com.skribbl.client.net;
+
+import com.skribbl.client.controller.ClientController;
+import com.skribbl.common.protocol.JsonCodec;
+import com.skribbl.common.protocol.MessageType;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+
+/**
+ * Quáº£n lÃ½ káº¿t ná»‘i TCP Socket phÃ­a Client (UTF-8 NDJSON, báº­t TCP_NODELAY giáº£m Ä‘á»™ trá»… nÃ©t váº½).
+ */
+public class SocketClient {
+    private Socket socket;
+    private BufferedWriter writer;
+    private BufferedReader reader;
+    private ServerReaderThread readerThread;
+    private final Object writeLock = new Object();
+
+    public void connect(String host, int port, ClientController controller) throws IOException {
+        socket = new Socket(host, port);
+        socket.setTcpNoDelay(true);
+
+        writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+        reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+
+        readerThread = new ServerReaderThread(reader, controller);
+        readerThread.start();
+    }
+
+    public void send(MessageType type, Object payload) {
+        if (writer == null || socket == null || socket.isClosed()) return;
+        synchronized (writeLock) {
+            try {
+                String ndjsonLine = JsonCodec.serializeMessage(type, payload);
+                writer.write(ndjsonLine);
+                writer.newLine();
+                writer.flush();
+            } catch (IOException e) {
+                System.err.println("[SocketClient] Gá»­i gÃ³i tin tháº¥t báº¡i: " + e.getMessage());
+            }
+        }
+    }
+
+    public void disconnect() {
+        if (readerThread != null) {
+            readerThread.stopReading();
+        }
+        try {
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
+        } catch (IOException ignored) {
+        }
+    }
+}
+=== C:\SkribblNhom20\source\client\src\main\java\com\skribbl\client\net\StrokeThrottler.java ===
+package com.skribbl.client.net;
+
+/**
+ * Bá»™ lá»c tá»‘i Æ°u bÄƒng thÃ´ng: chá»‰ gá»­i tá»a Ä‘á»™ má»›i khi khoáº£ng cÃ¡ch Euclid > 2px.
+ */
+public class StrokeThrottler {
+    private static final double MIN_DISTANCE = 2.0;
+    private double lastX = -1;
+    private double lastY = -1;
+    private boolean hasLastPoint = false;
+
+    public boolean shouldSend(double x, double y) {
+        if (!hasLastPoint) {
+            update(x, y);
+            return true;
+        }
+        double distance = Math.hypot(x - lastX, y - lastY);
+        if (distance > MIN_DISTANCE) {
+            update(x, y);
+            return true;
+        }
+        return false;
+    }
+
+    public void reset() {
+        hasLastPoint = false;
+        lastX = -1;
+        lastY = -1;
+    }
+
+    private void update(double x, double y) {
+        this.lastX = x;
+        this.lastY = y;
+        this.hasLastPoint = true;
+    }
+}
+=== C:\SkribblNhom20\source\client\src\main\java\com\skribbl\client\ui\canvas\DrawingCanvas.java ===
+package com.skribbl.client.ui.canvas;
+
+import com.skribbl.client.controller.ClientController;
+import com.skribbl.client.net.StrokeThrottler;
+import com.skribbl.common.dto.DrawStrokeDto;
+import com.skribbl.common.model.StrokeData;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.StrokeLineCap;
+import javafx.scene.shape.StrokeLineJoin;
+
+import java.util.List;
+
+public class DrawingCanvas extends BorderPane {
+    public static final double LOGICAL_WIDTH = 960.0;
+    public static final double LOGICAL_HEIGHT = 600.0;
+
+    private final Canvas canvas;
+    private final GraphicsContext gc;
+    private final HBox toolbar;
+    private final ClientController controller;
+    private final StrokeThrottler throttler = new StrokeThrottler();
+
+    private String currentColor = "#000000";
+    private int currentThickness = 5;
+    private boolean isEraser = false;
+    private boolean drawingEnabled = false;
+
+    private double prevX = -1;
+    private double prevY = -1;
+
+    private static final String[] PALETTE = {
+            "#000000", "#7F7F7F", "#880015", "#ED1C24",
+            "#FF7F27", "#FFF200", "#22B14C", "#00A2E8",
+            "#3F48CC", "#A349A4", "#FFFFFF", "#B97A57"
+    };
+
+    public DrawingCanvas(ClientController controller) {
+        this.controller = controller;
+        this.canvas = new Canvas(LOGICAL_WIDTH, LOGICAL_HEIGHT);
+        this.gc = canvas.getGraphicsContext2D();
+
+        gc.setLineCap(StrokeLineCap.ROUND);
+        gc.setLineJoin(StrokeLineJoin.ROUND);
+        clearCanvasLocal();
+
+        // Bá»c Canvas trong StackPane Ä‘á»ƒ tá»± Ä‘á»™ng thu phÃ³ng theo kÃ­ch thÆ°á»›c cá»­a sá»• mÃ  khÃ´ng mÃ©o tá»‰ lá»‡
+        StackPane canvasHolder = new StackPane(canvas);
+        canvasHolder.setMinSize(0, 0);
+        canvasHolder.setStyle("-fx-background-color: #E0E0E0;");
+        canvasHolder.layoutBoundsProperty().addListener((obs, oldBounds, newBounds) -> {
+            if (newBounds.getWidth() <= 0 || newBounds.getHeight() <= 0) return;
+            double scale = Math.min(newBounds.getWidth() / LOGICAL_WIDTH, newBounds.getHeight() / LOGICAL_HEIGHT);
+            canvas.setScaleX(scale);
+            canvas.setScaleY(scale);
+        });
+
+        setupMouseHandlers();
+        this.toolbar = createToolbar();
+
+        setCenter(canvasHolder);
+        setBottom(toolbar);
+        setMinSize(0, 0);
+        setStyle("-fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #FFFFFF;");
+        setDrawingEnabled(false);
+    }
+
+    private void setupMouseHandlers() {
+        canvas.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> {
+            if (!drawingEnabled) return;
+            throttler.reset();
+            prevX = clampX(e.getX());
+            prevY = clampY(e.getY());
+            throttler.shouldSend(prevX, prevY);
+            emitSegment(prevX, prevY, prevX, prevY);
+        });
+
+        canvas.addEventHandler(MouseEvent.MOUSE_DRAGGED, e -> {
+            if (!drawingEnabled) return;
+            double x = clampX(e.getX());
+            double y = clampY(e.getY());
+            if (throttler.shouldSend(x, y)) {
+                emitSegment(prevX, prevY, x, y);
+                prevX = x;
+                prevY = y;
+            }
+        });
+
+        canvas.addEventHandler(MouseEvent.MOUSE_RELEASED, e -> {
+            prevX = -1;
+            prevY = -1;
+            throttler.reset();
+        });
+    }
+
+    private double clampX(double x) {
+        return Math.max(0, Math.min(LOGICAL_WIDTH, x));
+    }
+
+    private double clampY(double y) {
+        return Math.max(0, Math.min(LOGICAL_HEIGHT, y));
+    }
+
+    private void emitSegment(double x1, double y1, double x2, double y2) {
+        String hex = isEraser ? "#FFFFFF" : currentColor;
+        DrawStrokeDto dto = new DrawStrokeDto(x1, y1, x2, y2, hex, currentThickness, isEraser);
+        drawSegmentLocal(x1, y1, x2, y2, hex, currentThickness, isEraser);
+        controller.sendDrawStroke(dto);
+    }
+
+    private void drawSegmentLocal(double x1, double y1, double x2, double y2,
+                                  String hexColor, int thickness, boolean eraser) {
+        gc.setStroke(eraser ? Color.WHITE : Color.web(hexColor));
+        gc.setLineWidth(thickness);
+        gc.strokeLine(x1, y1, x2, y2);
+    }
+
+    public void renderRemoteStroke(DrawStrokeDto dto) {
+        drawSegmentLocal(dto.x1(), dto.y1(), dto.x2(), dto.y2(), dto.color(), dto.thickness(), dto.eraser());
+    }
+
+    public void renderSyncHistory(List<StrokeData> strokes) {
+        clearCanvasLocal();
+        if (strokes == null) return;
+        for (StrokeData s : strokes) {
+            drawSegmentLocal(s.x1(), s.y1(), s.x2(), s.y2(), s.color(), s.thickness(), s.eraser());
+        }
+    }
+
+    public void clearCanvasLocal() {
+        gc.setFill(Color.WHITE);
+        gc.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+    }
+
+    public void setDrawingEnabled(boolean enabled) {
+        this.drawingEnabled = enabled;
+        this.toolbar.setVisible(enabled);
+        this.toolbar.setManaged(enabled);
+    }
+
+    private HBox createToolbar() {
+        HBox bar = new HBox(6);
+        bar.setPadding(new Insets(6));
+        bar.setAlignment(Pos.CENTER);
+        bar.setStyle("-fx-background-color: #F4F4F4; -fx-border-color: #DDDDDD; -fx-border-width: 1 0 0 0;");
+
+        for (String hex : PALETTE) {
+            Button colorBtn = new Button();
+            colorBtn.setPrefSize(22, 22);
+            colorBtn.setMinSize(18, 18);
+            colorBtn.setStyle("-fx-background-color: " + hex + "; -fx-border-color: #555555; -fx-border-radius: 3;");
+            colorBtn.setOnAction(e -> {
+                isEraser = false;
+                currentColor = hex;
+            });
+            bar.getChildren().add(colorBtn);
+        }
+
+        Slider sizeSlider = new Slider(2, 24, 5);
+        sizeSlider.setPrefWidth(80);
+        sizeSlider.valueProperty().addListener((obs, oldVal, newVal) -> currentThickness = newVal.intValue());
+
+        Button eraserBtn = new Button("Táº©y");
+        eraserBtn.setOnAction(e -> isEraser = true);
+
+        Button clearBtn = new Button("XÃ³a háº¿t");
+        clearBtn.setStyle("-fx-background-color: #E53935; -fx-text-fill: white;");
+        clearBtn.setOnAction(e -> {
+            clearCanvasLocal();
+            controller.sendClearCanvas();
+        });
+
+        bar.getChildren().addAll(new Label("Cá»¡:"), sizeSlider, eraserBtn, clearBtn);
+        return bar;
+    }
+}
+=== C:\SkribblNhom20\source\client\src\main\java\com\skribbl\client\ui\game\GameView.java ===
+package com.skribbl.client.ui.game;
+
+import com.skribbl.client.controller.ClientController;
+import com.skribbl.client.ui.canvas.DrawingCanvas;
+import javafx.geometry.Insets;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+
+public class GameView extends BorderPane {
+    private final TopStatusBar topStatusBar;
+    private final DrawingCanvas drawingCanvas;
+    private final TextArea chatArea;
+
+    public GameView(ClientController controller) {
+        this.topStatusBar = new TopStatusBar();
+        this.drawingCanvas = new DrawingCanvas(controller);
+        this.chatArea = new TextArea();
+
+        setMinSize(0, 0);
+        setTop(topStatusBar);
+        setCenter(drawingCanvas);
+        setRight(createChatPanel(controller));
+    }
+
+    private VBox createChatPanel(ClientController controller) {
+        VBox panel = new VBox(8);
+        panel.setPadding(new Insets(10));
+        panel.setPrefWidth(260);
+        panel.setMinWidth(200);
+        panel.setStyle("-fx-background-color: #ECF0F1; -fx-border-color: #BDC3C7; -fx-border-width: 0 0 0 1;");
+
+        chatArea.setEditable(false);
+        chatArea.setWrapText(true);
+        VBox.setVgrow(chatArea, Priority.ALWAYS);
+
+        TextField inputField = new TextField();
+        inputField.setPromptText("Nháº­p tá»« Ä‘oÃ¡n hoáº·c chat...");
+
+        Button sendBtn = new Button("Gá»­i");
+        Runnable sendAction = () -> {
+            String msg = inputField.getText();
+            if (!msg.isBlank()) {
+                controller.sendChat(msg);
+                inputField.clear();
+            }
+        };
+
+        sendBtn.setOnAction(e -> sendAction.run());
+        inputField.setOnAction(e -> sendAction.run());
+
+        HBox inputBox = new HBox(5, inputField, sendBtn);
+        HBox.setHgrow(inputField, Priority.ALWAYS);
+
+        panel.getChildren().addAll(new Label("Chat & ÄoÃ¡n tá»«:"), chatArea, inputBox);
+        return panel;
+    }
+
+    public void appendChatMessage(String message) {
+        chatArea.appendText(message + "\n");
+    }
+
+    public TopStatusBar getTopStatusBar() {
+        return topStatusBar;
+    }
+
+    public DrawingCanvas getDrawingCanvas() {
+        return drawingCanvas;
+    }
+}
+=== C:\SkribblNhom20\source\client\src\main\java\com\skribbl\client\ui\game\TopStatusBar.java ===
+package com.skribbl.client.ui.game;
+
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+
+public class TopStatusBar extends HBox {
+    private final Label statusLabel;
+    private final Label wordHintLabel;
+    private final Label timerLabel;
+
+    public TopStatusBar() {
+        setPadding(new Insets(10, 20, 10, 20));
+        setAlignment(Pos.CENTER_LEFT);
+        setStyle("-fx-background-color: #2C3E50;");
+
+        statusLabel = new Label("Äang chá» báº¯t Ä‘áº§u...");
+        statusLabel.setTextFill(javafx.scene.paint.Color.WHITE);
+        statusLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
+
+        wordHintLabel = new Label("_ _ _ _ _");
+        wordHintLabel.setTextFill(javafx.scene.paint.Color.web("#F1C40F"));
+        wordHintLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
+
+        timerLabel = new Label("60s");
+        timerLabel.setTextFill(javafx.scene.paint.Color.web("#2ECC71"));
+        timerLabel.setFont(Font.font("System", FontWeight.BOLD, 16));
+
+        Region leftSpacer = new Region();
+        Region rightSpacer = new Region();
+        HBox.setHgrow(leftSpacer, Priority.ALWAYS);
+        HBox.setHgrow(rightSpacer, Priority.ALWAYS);
+
+        getChildren().addAll(statusLabel, leftSpacer, wordHintLabel, rightSpacer, timerLabel);
+    }
+
+    public void updateTurnInfo(String status, String wordDisplay, int seconds) {
+        statusLabel.setText(status);
+        wordHintLabel.setText(wordDisplay);
+        timerLabel.setText(seconds + "s");
+        timerLabel.setTextFill(javafx.scene.paint.Color.web("#2ECC71"));
+    }
+
+    public void updateTimerAndMask(int remainingSec, String mask, boolean isDrawer) {
+        timerLabel.setText(remainingSec + "s");
+        if (remainingSec <= 10) {
+            timerLabel.setTextFill(javafx.scene.paint.Color.web("#E74C3C"));
+        }
+        if (!isDrawer && mask != null && !mask.isEmpty()) {
+            wordHintLabel.setText(mask);
+        }
+    }
+}
+=== C:\SkribblNhom20\source\client\src\main\java\com\skribbl\client\ui\game\WordChoiceDialog.java ===
+package com.skribbl.client.ui.game;
+
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+
+import java.util.List;
+
+public class WordChoiceDialog extends Dialog<Integer> {
+    public WordChoiceDialog(List<String> words) {
+        setTitle("LÆ°á»£t cá»§a báº¡n!");
+        setHeaderText("HÃ£y chá»n 1 trong 3 tá»« khÃ³a dÆ°á»›i Ä‘Ã¢y Ä‘á»ƒ váº½:");
+
+        VBox content = new VBox(15);
+        content.setPadding(new Insets(20));
+        content.setAlignment(Pos.CENTER);
+
+        Label instruction = new Label("Chá»n nhanh trÆ°á»›c khi háº¿t 10 giÃ¢y:");
+        HBox buttonBox = new HBox(12);
+        buttonBox.setAlignment(Pos.CENTER);
+
+        for (int i = 0; i < words.size(); i++) {
+            final int index = i;
+            Button btn = new Button(words.get(i));
+            btn.setFont(Font.font("System", FontWeight.BOLD, 14));
+            btn.setPrefWidth(130);
+            btn.setPrefHeight(40);
+            btn.setOnAction(e -> {
+                setResult(index);
+                close();
+            });
+            buttonBox.getChildren().add(btn);
+        }
+
+        content.getChildren().addAll(instruction, buttonBox);
+        getDialogPane().setContent(content);
+        getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        getDialogPane().lookupButton(ButtonType.CLOSE).setVisible(false);
+    }
+}
