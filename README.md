@@ -6,6 +6,8 @@
 
 > **Định hướng giao diện mới:** Client chuyển sang JavaFX 21.0.13. Tài liệu và code mẫu đã cập nhật; POM/ClientMain trong mã nguồn cần được chuyển theo [patch PFX](docs/tv2/05a-patch-javafx-setup.md) trước khi dùng các lệnh chạy JavaFX bên dưới.
 
+> **Kế hoạch hai chế độ:** [PLAN nhóm](docs/PLAN.md) bổ sung Chơi nhanh (phòng công khai tự ghép/tự bắt đầu) và Chơi với bạn (phòng riêng có mã/host), cùng cải tiến cơ bản và backlog nâng cao. Đây là chức năng cần triển khai theo P09/P10, chưa xác nhận source hiện tại đã hỗ trợ.
+
 ---
 
 ## 🧑‍💻 THÔNG TIN NHÓM
