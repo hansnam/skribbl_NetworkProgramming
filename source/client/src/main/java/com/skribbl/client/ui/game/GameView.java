@@ -14,16 +14,19 @@ import javafx.scene.layout.VBox;
 
 public class GameView extends BorderPane {
     private final TopStatusBar topStatusBar;
+    private final PlayerListPanel playerListPanel;
     private final DrawingCanvas drawingCanvas;
     private final TextArea chatArea;
 
     public GameView(ClientController controller) {
         this.topStatusBar = new TopStatusBar();
+        this.playerListPanel = new PlayerListPanel();
         this.drawingCanvas = new DrawingCanvas(controller);
         this.chatArea = new TextArea();
 
         setMinSize(0, 0);
         setTop(topStatusBar);
+        setLeft(playerListPanel);
         setCenter(drawingCanvas);
         setRight(createChatPanel(controller));
     }
@@ -40,7 +43,7 @@ public class GameView extends BorderPane {
         VBox.setVgrow(chatArea, Priority.ALWAYS);
 
         TextField inputField = new TextField();
-        inputField.setPromptText("Nhập từ đoán hoặc chat...");
+        inputField.setPromptText("Nhập từ đoán hoặc lệnh (/create)...");
 
         Button sendBtn = new Button("Gửi");
         Runnable sendAction = () -> {
@@ -67,6 +70,10 @@ public class GameView extends BorderPane {
 
     public TopStatusBar getTopStatusBar() {
         return topStatusBar;
+    }
+
+    public PlayerListPanel getPlayerListPanel() {
+        return playerListPanel;
     }
 
     public DrawingCanvas getDrawingCanvas() {

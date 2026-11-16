@@ -5,6 +5,7 @@ import com.skribbl.client.ui.game.GameView;
 import com.skribbl.client.ui.game.WordChoiceDialog;
 import com.skribbl.common.dto.*;
 import com.skribbl.common.model.PlayerDto;
+import com.skribbl.common.model.RoomStatus;
 import com.skribbl.common.protocol.JsonCodec;
 import com.skribbl.common.protocol.MessageType;
 import com.skribbl.common.protocol.NetworkMessage;
@@ -12,14 +13,21 @@ import javafx.application.Platform;
 import javafx.scene.control.Alert;
 
 import java.io.IOException;
+import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class ClientController {
     private final SocketClient socketClient;
-    private final String nickname;
+    private volatile String nickname;
     private volatile String playerId;
+    private volatile String currentRoomCode;
+    private volatile boolean isHost = false;
     private volatile boolean canDraw = false;
+
     private GameView gameView;
+    private Consumer<RoomUpdateDto> onRoomJoinedCallback;
+    private Runnable onRoomLeftCallback;
 
     public ClientController(String nickname) {
         this.nickname = nickname;
@@ -28,6 +36,36 @@ public class ClientController {
 
     public void setGameView(GameView gameView) {
         this.gameView = gameView;
+    }
+
+    public void setNickname(String nickname) {
+        if (nickname != null && !nickname.isBlank()) {
+            this.nickname = nickname.trim();
+        }
+    }
+
+    public String getNickname() {
+        return nickname;
+    }
+
+    public String getPlayerId() {
+        return playerId;
+    }
+
+    public String getCurrentRoomCode() {
+        return currentRoomCode;
+    }
+
+    public boolean isHost() {
+        return isHost;
+    }
+
+    public void setOnRoomJoinedCallback(Consumer<RoomUpdateDto> callback) {
+        this.onRoomJoinedCallback = callback;
+    }
+
+    public void setOnRoomLeftCallback(Runnable callback) {
+        this.onRoomLeftCallback = callback;
     }
 
     public void connectToServer(String host, int port) throws IOException {
@@ -60,18 +98,30 @@ public class ClientController {
 
     public void leaveRoom() {
         socketClient.send(MessageType.LEAVE_ROOM, null);
-        this.canDraw = false;
-        if (gameView != null) {
-            gameView.getDrawingCanvas().setDrawingEnabled(false);
-            gameView.getDrawingCanvas().clearCanvasLocal();
+        resetRoomState();
+        if (onRoomLeftCallback != null) {
+            Platform.runLater(onRoomLeftCallback);
         }
+    }
+
+    private void resetRoomState() {
+        this.currentRoomCode = null;
+        this.isHost = false;
+        this.canDraw = false;
+        Platform.runLater(() -> {
+            if (gameView != null) {
+                gameView.getDrawingCanvas().setDrawingEnabled(false);
+                gameView.getDrawingCanvas().clearCanvasLocal();
+                gameView.getPlayerListPanel().updatePlayers(null);
+                gameView.getTopStatusBar().updateTurnInfo("Đang chờ bắt đầu...", "_ _ _ _ _", 60);
+            }
+        });
     }
 
     public void sendChat(String text) {
         if (text == null || text.isBlank()) return;
         String trimmed = text.trim();
 
-        // Hỗ trợ lệnh nhanh trên chat để kiểm thử luồng phòng với Server
         if (trimmed.startsWith("/")) {
             handleSlashCommand(trimmed);
             return;
@@ -83,8 +133,15 @@ public class ClientController {
         String[] parts = cmd.split("\\s+");
         switch (parts[0].toLowerCase()) {
             case "/create" -> {
-                createRoom(3, 60);
-                appendSystemChat("Đang gửi yêu cầu tạo phòng...");
+                int rounds = 3;
+                int time = 60;
+                try {
+                    if (parts.length >= 2) rounds = Integer.parseInt(parts[1]);
+                    if (parts.length >= 3) time = Integer.parseInt(parts[2]);
+                } catch (NumberFormatException ignored) {
+                }
+                createRoom(rounds, time);
+                appendSystemChat("Đang tạo phòng (" + rounds + " vòng, " + time + "s)...");
             }
             case "/join" -> {
                 if (parts.length < 2) {
@@ -96,13 +153,13 @@ public class ClientController {
             }
             case "/start" -> {
                 startGame();
-                appendSystemChat("Đang gửi yêu cầu bắt đầu game...");
+                appendSystemChat("Đang gửi yêu cầu bắt đầu ván đấu...");
             }
             case "/leave" -> {
                 leaveRoom();
                 appendSystemChat("Đã rời phòng.");
             }
-            default -> appendSystemChat("Lệnh hỗ trợ: /create | /join <MÃ> | /start | /leave");
+            default -> appendSystemChat("Lệnh hỗ trợ: /create [vòng] [giây] | /join <MÃ> | /start | /leave");
         }
     }
 
@@ -113,24 +170,45 @@ public class ClientController {
             case CONNECT_ACK -> {
                 ConnectAckDto ack = JsonCodec.decodePayload(msg, ConnectAckDto.class);
                 this.playerId = (ack != null && ack.playerId() != null) ? ack.playerId() : nickname;
-                appendSystemChat("Kết nối thành công (ID: " + playerId + "). Gõ /create hoặc /join <MÃ> để vào phòng.");
+                if (ack != null && ack.nickname() != null && !ack.nickname().isBlank()) {
+                    this.nickname = ack.nickname();
+                }
+                appendSystemChat("Kết nối thành công! Xin chào " + nickname + " (ID: " + playerId + ").");
             }
             case PING -> socketClient.send(MessageType.PONG, null);
             case ROOM_UPDATE -> {
                 RoomUpdateDto room = JsonCodec.decodePayload(msg, RoomUpdateDto.class);
                 if (room != null) {
+                    boolean firstJoin = (this.currentRoomCode == null && room.roomCode() != null);
+                    this.currentRoomCode = room.roomCode();
+                    this.isHost = (playerId != null && playerId.equals(room.hostId()));
+
+                    Platform.runLater(() -> {
+                        if (firstJoin && onRoomJoinedCallback != null) {
+                            onRoomJoinedCallback.accept(room);
+                        }
+                        if (gameView != null) {
+                            gameView.getPlayerListPanel().updatePlayers(room.players());
+                            if (room.status() == RoomStatus.WAITING) {
+                                String hostHint = isHost ? " (Bạn là chủ phòng - gõ /start để chơi)" : " (Đang chờ chủ phòng bắt đầu)";
+                                gameView.getTopStatusBar().updateTurnInfo("Phòng: " + room.roomCode() + hostHint, "_ _ _ _ _", room.drawTimeSec());
+                            }
+                        }
+                    });
+
                     String playerList = room.players() == null ? "" : room.players().stream()
                             .map(p -> p.nickname() + " (" + p.score() + "đ)")
                             .collect(Collectors.joining(", "));
-                    appendSystemChat("Phòng [" + room.roomCode() + "] - Trạng thái: " + room.status()
-                            + " | Người chơi: " + playerList);
+                    appendSystemChat("Phòng [" + room.roomCode() + "] (" + room.status() + ") | Người chơi: " + playerList);
                 }
             }
             case DRAW_STROKE -> {
                 DrawStrokeDto stroke = JsonCodec.decodePayload(msg, DrawStrokeDto.class);
                 if (stroke != null) {
                     Platform.runLater(() -> {
-                        if (gameView != null) gameView.getDrawingCanvas().renderRemoteStroke(stroke);
+                        if (gameView != null) {
+                            gameView.getDrawingCanvas().renderRemoteStroke(stroke);
+                        }
                     });
                 }
             }
@@ -138,12 +216,16 @@ public class ClientController {
                 CanvasSyncDto syncDto = JsonCodec.decodePayload(msg, CanvasSyncDto.class);
                 if (syncDto != null) {
                     Platform.runLater(() -> {
-                        if (gameView != null) gameView.getDrawingCanvas().renderSyncHistory(syncDto.strokes());
+                        if (gameView != null) {
+                            gameView.getDrawingCanvas().renderSyncHistory(syncDto.strokes());
+                        }
                     });
                 }
             }
             case CLEAR_CANVAS -> Platform.runLater(() -> {
-                if (gameView != null) gameView.getDrawingCanvas().clearCanvasLocal();
+                if (gameView != null) {
+                    gameView.getDrawingCanvas().clearCanvasLocal();
+                }
             });
             case WORD_CHOICES -> {
                 WordChoicesDto choices = JsonCodec.decodePayload(msg, WordChoicesDto.class);
@@ -154,7 +236,7 @@ public class ClientController {
             case TURN_START -> {
                 TurnStartDto turn = JsonCodec.decodePayload(msg, TurnStartDto.class);
                 if (turn != null) {
-                    this.canDraw = playerId != null && playerId.equals(turn.drawerId());
+                    this.canDraw = (playerId != null && playerId.equals(turn.drawerId()));
                     Platform.runLater(() -> {
                         if (gameView != null) {
                             gameView.getDrawingCanvas().clearCanvasLocal();
@@ -182,9 +264,11 @@ public class ClientController {
                 if (chat != null) {
                     Platform.runLater(() -> {
                         if (gameView != null) {
-                            String prefix = (chat.kind() == ChatKind.SYSTEM || chat.kind() == ChatKind.CLOSE_GUESS)
-                                    ? "[Thông báo] "
-                                    : chat.sender() + ": ";
+                            String prefix = switch (chat.kind()) {
+                                case SYSTEM -> "[Hệ thống] ";
+                                case CLOSE_GUESS -> "[Gợi ý] ";
+                                default -> chat.sender() + ": ";
+                            };
                             gameView.appendChatMessage(prefix + chat.text());
                         }
                     });
@@ -193,6 +277,11 @@ public class ClientController {
             case PLAYER_GUESSED -> {
                 PlayerGuessedDto guessed = JsonCodec.decodePayload(msg, PlayerGuessedDto.class);
                 if (guessed != null) {
+                    Platform.runLater(() -> {
+                        if (gameView != null && guessed.players() != null) {
+                            gameView.getPlayerListPanel().updatePlayers(guessed.players());
+                        }
+                    });
                     appendSystemChat(guessed.nickname() + " đã đoán đúng! (+" + guessed.awardedPoints() + " điểm)");
                 }
             }
@@ -203,6 +292,9 @@ public class ClientController {
                 Platform.runLater(() -> {
                     if (gameView != null) {
                         gameView.getDrawingCanvas().setDrawingEnabled(false);
+                        if (end != null && end.players() != null) {
+                            gameView.getPlayerListPanel().updatePlayers(end.players());
+                        }
                         gameView.appendChatMessage("[Hệ thống] Hết lượt! Đáp án là: " + answer);
                     }
                 });
@@ -216,6 +308,9 @@ public class ClientController {
                 Platform.runLater(() -> {
                     if (gameView != null) {
                         gameView.getDrawingCanvas().setDrawingEnabled(false);
+                        if (over != null && over.players() != null) {
+                            gameView.getPlayerListPanel().updatePlayers(over.players());
+                        }
                         gameView.getTopStatusBar().updateTurnInfo("Trò chơi kết thúc!", "CHIẾN THẮNG: " + winnerText, 0);
                         gameView.appendChatMessage("[Hệ thống] Trò chơi kết thúc! Người chiến thắng: " + winnerText);
                     }
@@ -225,7 +320,9 @@ public class ClientController {
                 ErrorMsgDto err = JsonCodec.decodePayload(msg, ErrorMsgDto.class);
                 String errText = (err != null && err.message() != null) ? err.message() : "Lỗi từ Server";
                 Platform.runLater(() -> {
-                    if (gameView != null) gameView.appendChatMessage("[Lỗi] " + errText);
+                    if (gameView != null) {
+                        gameView.appendChatMessage("[Lỗi] " + errText);
+                    }
                 });
             }
             default -> {
@@ -243,16 +340,16 @@ public class ClientController {
 
     private void showWordChoicePopup(WordChoicesDto dto) {
         WordChoiceDialog dialog = new WordChoiceDialog(dto.choices(), dto.chooseSeconds());
-        dialog.showAndWait().ifPresent(chosenIndex ->
-                socketClient.send(MessageType.CHOOSE_WORD, new ChooseWordDto(dto.turnId(), chosenIndex))
-        );
+        Optional<Integer> result = dialog.showAndWait();
+        int chosenIndex = result.orElse(0);
+        socketClient.send(MessageType.CHOOSE_WORD, new ChooseWordDto(dto.turnId(), chosenIndex));
     }
 
     public void onConnectionLost(String reason) {
-        this.canDraw = false;
+        resetRoomState();
         Platform.runLater(() -> {
-            if (gameView != null) {
-                gameView.getDrawingCanvas().setDrawingEnabled(false);
+            if (onRoomLeftCallback != null) {
+                onRoomLeftCallback.run();
             }
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("Mất kết nối mạng");
@@ -265,4 +362,4 @@ public class ClientController {
     public void shutdown() {
         socketClient.disconnect();
     }
-}
+}   
