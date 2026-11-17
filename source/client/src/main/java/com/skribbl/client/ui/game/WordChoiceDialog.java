@@ -65,11 +65,22 @@ public class WordChoiceDialog extends Dialog<Integer> {
         countdownTimeline.play();
 
         setOnCloseRequest(e -> stopCountdown());
+        setOnHidden(e -> stopCountdown());
     }
 
     private void stopCountdown() {
         if (countdownTimeline != null) {
             countdownTimeline.stop();
         }
+    }
+
+    /**
+     * Đóng hộp thoại và dừng bộ đếm ngược Timeline ngay lập tức:
+     * Được ClientController gọi chủ động khi server chốt từ (TURN_START),
+     * kết thúc lượt (TURN_END), chuyển phòng hoặc mất kết nối.
+     */
+    public void closeAndStop() {
+        stopCountdown();
+        close();
     }
 }

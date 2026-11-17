@@ -50,13 +50,23 @@ class TcpServerIntegrationTest {
 
     @AfterEach
     void tearDown() throws InterruptedException {
-        // D?ng runtime/outbox c?a fixture, kh?ng ?? worker t?n t?i sau test.
-        roomManager.closeAll();
-        gameTasks.shutdownNow();
-        assertTrue(gameTasks.awaitTermination(3, TimeUnit.SECONDS));
-
-        if (server != null) {
-            server.stop();
+        try {
+            // Đóng transport trước, khi executor còn nhận được task disconnect.
+            if (server != null) {
+                server.stop();
+            }
+        } finally {
+            try {
+                if (roomManager != null) {
+                    roomManager.closeAll();
+                }
+            } finally {
+                // Luôn dừng worker, kể cả khi đóng socket/phòng gặp lỗi.
+                if (gameTasks != null) {
+                    gameTasks.shutdownNow();
+                    assertTrue(gameTasks.awaitTermination(3, TimeUnit.SECONDS));
+                }
+            }
         }
     }
 

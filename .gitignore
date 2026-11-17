@@ -46,4 +46,5 @@ plan.md
 # Keep folder structure placeholders
 !.gitkeep
 
-docs/tv2/.verify-data
+docs/
+tmp/

@@ -27,6 +27,8 @@ class RoomManagerTest {
     private ServerSocket dummyServerSocket;
     private final List<Socket> openSockets = new ArrayList<>();
     private RoomManager roomManager;
+    private ExecutorService gameTasks;
+    private GameService games;
 
     @BeforeEach
     void setUp() throws IOException {
@@ -37,18 +39,27 @@ class RoomManagerTest {
 
     @AfterEach
     void tearDown() throws IOException, InterruptedException {
-        // D?ng runtime/outbox c?a fixture, kh?ng ?? worker t?n t?i sau test.
-        roomManager.closeAll();
-        gameTasks.shutdownNow();
-        assertTrue(gameTasks.awaitTermination(3, TimeUnit.SECONDS));
-
-        for (Socket s : openSockets) {
+        try {
+            // Giải phóng I/O trước khi chờ dừng outbox và executor của fixture.
+            for (Socket s : openSockets) {
+                try {
+                    s.close();
+                } catch (IOException ignored) {}
+            }
+            if (dummyServerSocket != null && !dummyServerSocket.isClosed()) {
+                dummyServerSocket.close();
+            }
+        } finally {
             try {
-                s.close();
-            } catch (IOException ignored) {}
-        }
-        if (dummyServerSocket != null && !dummyServerSocket.isClosed()) {
-            dummyServerSocket.close();
+                if (roomManager != null) {
+                    roomManager.closeAll();
+                }
+            } finally {
+                if (gameTasks != null) {
+                    gameTasks.shutdownNow();
+                    assertTrue(gameTasks.awaitTermination(3, TimeUnit.SECONDS));
+                }
+            }
         }
     }
 
@@ -137,13 +148,18 @@ class RoomManagerTest {
         assertNull(roomManager.getRoom(code));
     }
 
-    private ExecutorService gameTasks;
-
+    /**
+     * Gắn runtime logic game (GameService) vào RoomManager cho môi trường test:
+     * Khởi tạo từ điển, cấp Virtual Thread executor và đăng ký các hook sự kiện phòng.
+     *
+     * @throws IOException Nếu không tìm thấy hoặc không đọc được file tài nguyên từ điển words_en.csv.
+     */
+    // Fixture dùng cùng hook tạo/join/leave như server; phải gắn trước khi test tạo phòng.
     private void attachGameRuntime() throws IOException {
         gameTasks = Executors.newVirtualThreadPerTaskExecutor();
         WordRepository words = new WordRepository(
                 WordRepository.class.getResourceAsStream("/words_en.csv"));
-        GameService games = new GameService(roomManager, words, gameTasks, System::nanoTime);
+        games = new GameService(roomManager, words, gameTasks, System::nanoTime);
         roomManager.setRoomCreatedHandler(games::onCreated);
         roomManager.setJoinedHandler(games::onJoined);
         roomManager.setLeftHandler(games::onLeft);

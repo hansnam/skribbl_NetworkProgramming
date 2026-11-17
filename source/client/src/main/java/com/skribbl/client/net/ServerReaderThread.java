@@ -5,9 +5,7 @@ import com.skribbl.common.protocol.JsonCodec;
 import com.skribbl.common.protocol.NetworkMessage;
 
 import java.io.BufferedReader;
-import java.io.EOFException;
 import java.io.IOException;
-import java.net.SocketException;
 
 /**
  * Luồng nền đọc bất đồng bộ từng dòng NDJSON từ Server mà không làm đơ giao diện JavaFX.
@@ -16,37 +14,55 @@ public class ServerReaderThread extends Thread {
     private final BufferedReader reader;
     private final ClientController controller;
     private volatile boolean running = true;
+    private final long epoch;
 
-    public ServerReaderThread(BufferedReader reader, ClientController controller) {
-        super("Skribbl-ServerReader");
+    /**
+     * Khởi tạo luồng đọc dữ liệu từ server (Daemon thread):
+     *
+     * @param reader     Luồng đọc BufferedReader từ socket.
+     * @param controller ClientController nhận các gói tin được giải mã.
+     * @param epoch      Số phiên kết nối định danh phiên làm việc này.
+     */
+    public ServerReaderThread(BufferedReader reader, ClientController controller, long epoch) {
+        super("client-reader-" + epoch);
         this.reader = reader;
         this.controller = controller;
+        this.epoch = epoch;
         setDaemon(true);
     }
 
+    /**
+     * Vòng lặp đọc dữ liệu mạng:
+     * Liên tục đọc từng dòng text từ socket (reader.readLine()),
+     * giải mã chuỗi JSON thành đối tượng NetworkMessage,
+     * và gửi tới controller.handleIncomingMessage(message, epoch) để xử lý.
+     * Nếu server đóng kết nối hoặc gặp lỗi mạng -> gọi controller.onConnectionLost.
+     */
     @Override
     public void run() {
         try {
-            String jsonLine;
-            while (running && (jsonLine = reader.readLine()) != null) {
-                if (jsonLine.isBlank()) continue;
+            String line;
+
+            while (running && (line = reader.readLine()) != null) {
+                if (line.isBlank())
+                    continue;
+                NetworkMessage message;
+
                 try {
-                    NetworkMessage message = JsonCodec.deserialize(jsonLine);
-                    controller.handleIncomingMessage(message);
-                } catch (Exception parseEx) {
-                    System.err.println("[Client] Lỗi giải mã JSON: " + parseEx.getMessage());
+                    message = JsonCodec.deserialize(line);
                 }
+                catch (RuntimeException ex) {
+                    System.err.println("Invalid JSON: " + ex.getMessage());
+                    continue;
+                }
+                controller.handleIncomingMessage(message, epoch);
             }
-            // readLine() trả về null nghĩa là Server đã đóng luồng (EOF)
-            if (running) {
-                throw new EOFException("Server đã đóng kết nối (EOF).");
-            }
-        } catch (EOFException eof) {
-            if (running) controller.onConnectionLost("Server đã ngắt kết nối (EOF).");
-        } catch (SocketException se) {
-            if (running) controller.onConnectionLost("Mất kết nối Socket tới Server: " + se.getMessage());
-        } catch (IOException ioe) {
-            if (running) controller.onConnectionLost("Lỗi đọc luồng dữ liệu mạng: " + ioe.getMessage());
+
+            if (running)
+                controller.onConnectionLost("Server closed the connection", epoch);
+        } catch (IOException ex) {
+            if (running)
+                controller.onConnectionLost(ex.getMessage(), epoch);
         }
     }
 

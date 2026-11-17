@@ -37,18 +37,33 @@ public class PlayerListPanel extends VBox {
         getChildren().addAll(title, scrollPane);
     }
 
+    /**
+     * Cập nhật danh sách người chơi và thứ hạng điểm số trên bảng PlayerListPanel.
+     * Áp dụng thuật toán xếp hạng chuẩn (Standard Competition Ranking - "1224 ranking"):
+     * Người có điểm bằng nhau sẽ nhận cùng một thứ hạng (ví dụ: điểm 500/500/200 sẽ xếp hạng là 1/1/3).
+     *
+     * @param players Danh sách snapshot người chơi nhận được từ server (List<PlayerDto>).
+     */
     public void updatePlayers(List<PlayerDto> players) {
         listContainer.getChildren().clear();
         if (players == null || players.isEmpty()) return;
 
-        // Sắp xếp điểm từ cao xuống thấp
-        List<PlayerDto> sorted = players.stream()
-                .sorted(Comparator.comparingInt(PlayerDto::score).reversed())
-                .toList();
+        // Sắp xếp: Điểm giảm dần (score reversed), nếu bằng điểm thì sắp theo playerId tăng dần
+        List<PlayerDto> sorted = new java.util.ArrayList<>(players);
+        sorted.sort(Comparator.comparingInt(PlayerDto::score).reversed()
+                .thenComparing(PlayerDto::id));
 
-        int rank = 1;
-        for (PlayerDto p : sorted) {
-            listContainer.getChildren().add(createPlayerRow(rank++, p));
+        // Tính thứ hạng: Hạng theo vị trí đầu của nhóm cùng điểm (500/500/200 -> 1/1/3)
+        int rank = 0;
+        int previousScore = Integer.MIN_VALUE;
+        for (int i = 0; i < sorted.size(); i++) {
+            PlayerDto player = sorted.get(i);
+            // Nếu là người đầu tiên hoặc điểm số khác người liền trước -> cập nhật hạng mới = index + 1
+            if (i == 0 || player.score() != previousScore) {
+                rank = i + 1;
+            }
+            listContainer.getChildren().add(createPlayerRow(rank, player));
+            previousScore = player.score();
         }
     }
 

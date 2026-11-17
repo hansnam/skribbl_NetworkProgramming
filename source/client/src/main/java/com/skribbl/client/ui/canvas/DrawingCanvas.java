@@ -144,6 +144,13 @@ public class DrawingCanvas extends BorderPane {
 
     public void setDrawingEnabled(boolean enabled) {
         this.drawingEnabled = enabled;
+
+        // Reset tọa độ điểm vẽ trước đó về -1 để tránh việc nét vẽ từ lượt trước bị nối sang lượt mới
+        prevX = -1;
+        prevY = -1;
+        // Reset bộ điều tiết tần suất gửi nét vẽ (throttler)
+        throttler.reset();
+
         this.toolbar.setVisible(enabled);
         this.toolbar.setManaged(enabled);
     }
@@ -176,7 +183,7 @@ public class DrawingCanvas extends BorderPane {
         Button clearBtn = new Button("Xóa hết");
         clearBtn.setStyle("-fx-background-color: #E53935; -fx-text-fill: white;");
         clearBtn.setOnAction(e -> {
-            clearCanvasLocal();
+            // Online chờ echo hợp lệ từ server; offline được controller xóa local.
             controller.sendClearCanvas();
         });
 
