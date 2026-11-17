@@ -1,4 +1,10 @@
 package com.skribbl.server.net;
+import com.skribbl.server.game.GameService;
+import com.skribbl.server.game.WordRepository;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
 
 import com.skribbl.common.dto.ConnectAckDto;
 import com.skribbl.common.dto.ConnectReqDto;
@@ -34,14 +40,21 @@ class TcpServerIntegrationTest {
     @BeforeEach
     void setUp() throws IOException {
         roomManager = new RoomManager();
+        attachGameRuntime();
         packetRouter = new ServerPacketRouter(roomManager);
         server = new TcpServer(0);
-        server.setHandlers(packetRouter::route, roomManager::handleDisconnect);
+        server.setHandlers(packetRouter::route,
+                session -> gameTasks.execute(() -> roomManager.handleDisconnect(session)));
         server.start();
     }
 
     @AfterEach
-    void tearDown() {
+    void tearDown() throws InterruptedException {
+        // D?ng runtime/outbox c?a fixture, kh?ng ?? worker t?n t?i sau test.
+        roomManager.closeAll();
+        gameTasks.shutdownNow();
+        assertTrue(gameTasks.awaitTermination(3, TimeUnit.SECONDS));
+
         if (server != null) {
             server.stop();
         }
@@ -127,6 +140,18 @@ class TcpServerIntegrationTest {
             assertEquals(roomCode, c2Dto.roomCode());
             assertEquals(2, c2Dto.players().size());
         }
+    }
+
+    private ExecutorService gameTasks;
+
+    private void attachGameRuntime() throws IOException {
+        gameTasks = Executors.newVirtualThreadPerTaskExecutor();
+        WordRepository words = new WordRepository(
+                WordRepository.class.getResourceAsStream("/words_en.csv"));
+        GameService games = new GameService(roomManager, words, gameTasks, System::nanoTime);
+        roomManager.setRoomCreatedHandler(games::onCreated);
+        roomManager.setJoinedHandler(games::onJoined);
+        roomManager.setLeftHandler(games::onLeft);
     }
 }
 

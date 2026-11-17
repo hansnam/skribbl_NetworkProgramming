@@ -9,7 +9,12 @@ import com.skribbl.common.protocol.JsonCodec;
 import com.skribbl.common.protocol.MessageType;
 import com.skribbl.common.protocol.NetworkMessage;
 import com.skribbl.server.net.ClientSession;
+import com.skribbl.common.dto.ErrorMsgDto;
+import com.skribbl.server.game.RoomOutboundDispatcher.Delivery;
+import com.skribbl.server.game.RoomRuntime;
 
+import java.util.TreeSet;
+import java.util.function.Supplier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -32,6 +37,8 @@ public class GameRoom {
     private volatile RoomStatus status = RoomStatus.WAITING;
     private volatile int currentRound = 0;
     private volatile String currentDrawerId = null;
+    private RoomRuntime runtime;
+    private List<Delivery> currentBatch;
 
     private final ConcurrentHashMap<String, ClientSession> memberSessions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, PlayerDto> players = new ConcurrentHashMap<>();
@@ -49,43 +56,31 @@ public class GameRoom {
      * @return true if added, false if duplicate nickname or invalid
      */
     public boolean addPlayer(ClientSession session) {
-        synchronized (roomLock) {
+        return withStateLock(() -> {
             String nickname = session.getNickname();
-            if (nickname == null || nickname.isBlank()) {
+            if (nickname == null || nickname.isBlank() || session.getPlayerId() == null
+                    || hasPlayerWithNickname(nickname)) {
                 return false;
             }
 
-            // Check duplicate nickname in room (case-insensitive)
-            boolean duplicate = players.values().stream()
-                    .anyMatch(p -> p.nickname().equalsIgnoreCase(nickname.trim()));
-            if (duplicate) {
-                return false;
-            }
-
-            String playerId = session.getPlayerId();
-            boolean isFirst = players.isEmpty();
-            if (isFirst) {
-                this.hostId = playerId;
-            }
+            boolean first = players.isEmpty();
+            if (first)
+                hostId = session.getPlayerId();
 
             PlayerDto player = new PlayerDto(
-                    playerId,
-                    nickname.trim(),
-                    0,
-                    isFirst,
-                    false,
-                    false
+                session.getPlayerId(), 
+                nickname.strip(), 
+                0, 
+                first, 
+                false, 
+                false
             );
 
-            players.put(playerId, player);
-            memberSessions.put(playerId, session);
+            players.put(player.id(), player);
+            memberSessions.put(player.id(), session);
             session.setCurrentRoomCode(roomCode);
-
-            // Broadcast room update and join message to room
-            broadcastRoomUpdate();
-            broadcastSystemChat(nickname + " joined the room.");
             return true;
-        }
+        });
     }
 
     /**
@@ -95,51 +90,26 @@ public class GameRoom {
      * @return remaining number of players in the room
      */
     public int removePlayer(String playerId) {
-        synchronized (roomLock) {
+        return withStateLock(() -> {
             ClientSession session = memberSessions.remove(playerId);
             PlayerDto removed = players.remove(playerId);
-
+            
             if (session != null) {
                 session.setCurrentRoomCode(null);
             }
-
-            if (removed == null) {
+            if (removed == null)
                 return players.size();
-            }
 
             broadcastSystemChat(removed.nickname() + " left the room.");
-
-            // Host reassignment if the host left
             if (Objects.equals(hostId, playerId)) {
+                hostId = null;
                 if (!players.isEmpty()) {
-                    // Pick the next available player as host
-                    String nextHostId = players.keySet().iterator().next();
-                    this.hostId = nextHostId;
-                    PlayerDto nextHost = players.get(nextHostId);
-                    if (nextHost != null) {
-                        PlayerDto updated = nextHost.withHost(true);
-                        players.put(nextHostId, updated);
-                        broadcastSystemChat(updated.nickname() + " is now the room host.");
-                    }
-                } else {
-                    this.hostId = null;
+                    hostId = new TreeSet<>(players.keySet()).first();
+                    players.put(hostId, players.get(hostId).withHost(true));
                 }
             }
-
-            // If players drop below 2 while game was running, reset back to WAITING
-            if (players.size() < 2 && status != RoomStatus.WAITING) {
-                status = RoomStatus.WAITING;
-                currentDrawerId = null;
-                currentRound = 0;
-                broadcastSystemChat("Not enough players to continue. Returned to lobby.");
-            }
-
-            if (!players.isEmpty()) {
-                broadcastRoomUpdate();
-            }
-
             return players.size();
-        }
+        });
     }
 
     /**
@@ -147,7 +117,7 @@ public class GameRoom {
      */
     public void broadcast(NetworkMessage message) {
         for (ClientSession session : memberSessions.values()) {
-            session.send(message);
+            sendTo(session, message);
         }
     }
 
@@ -157,7 +127,7 @@ public class GameRoom {
     public void broadcastExcept(String excludePlayerId, NetworkMessage message) {
         for (ClientSession session : memberSessions.values()) {
             if (!Objects.equals(session.getPlayerId(), excludePlayerId)) {
-                session.send(message);
+                sendTo(session, message);;
             }
         }
     }
@@ -168,7 +138,7 @@ public class GameRoom {
     public void unicast(String playerId, NetworkMessage message) {
         ClientSession session = memberSessions.get(playerId);
         if (session != null) {
-            session.send(message);
+            sendTo(memberSessions.get(playerId), message);
         }
     }
 
@@ -183,12 +153,11 @@ public class GameRoom {
     }
 
     public RoomUpdateDto createRoomUpdateDto() {
-        List<PlayerDto> playerList = new ArrayList<>(players.values());
         return new RoomUpdateDto(
                 roomCode,
                 hostId,
                 status,
-                Collections.unmodifiableList(playerList),
+                List.copyOf(players.values()),
                 maxRounds,
                 drawTimeSec,
                 currentRound
@@ -208,6 +177,68 @@ public class GameRoom {
     public void updatePlayerScore(String playerId, int additionalPoints) {
         players.computeIfPresent(playerId, (id, p) -> p.withScore(p.score() + additionalPoints));
     }
+
+    public void attachRuntime(RoomRuntime value) {
+        synchronized (roomLock) {
+            if (runtime != null) {
+                throw new IllegalStateException("Runtime already attached");
+            }
+            runtime = Objects.requireNonNull(value);
+        }
+    }
+
+    public void withStateLock(Runnable action) {
+        withStateLock(() -> {
+            action.run();
+            return null;
+        });
+    }
+
+    public <T> T withStateLock(Supplier<T> action) {
+        synchronized (roomLock) {
+            boolean outermost = currentBatch == null;
+            if (outermost) {
+                currentBatch = new ArrayList<>();
+            }
+            try {
+                return action.get();
+            } catch (RuntimeException ex) {
+                if (runtime != null) {
+                    runtime.fail();
+                }
+                throw ex;
+            } finally {
+                if (outermost) {
+                    List<Delivery> completed = currentBatch;
+                    currentBatch = null;
+                    if (!completed.isEmpty()) {
+                        if (runtime == null) {
+                            throw new IllegalStateException("Attach runtime before adding players");
+                        }
+                        if (!runtime.outbound.offer(completed)) {
+                            runtime.fail();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public void sendTo(ClientSession recipent, NetworkMessage message) {
+        if (!Thread.holdsLock(roomLock) || currentBatch == null) {
+            throw new IllegalStateException("Send through withStateLock");
+        }
+        if (recipent != null) {
+            currentBatch.add(new Delivery(recipent, message));
+        }
+    }
+
+    public void sendErrorTo(ClientSession recipient, String code, String text) {
+        sendTo(recipient, NetworkMessage.of(MessageType.ERROR_MSG,
+                JsonCodec.toNode(new ErrorMsgDto(code, text))));
+    }
+
+    
 
     // Getters and Setters
     public String getRoomCode() {
@@ -261,7 +292,7 @@ public class GameRoom {
     }
 
     public Collection<ClientSession> getMemberSessions() {
-        return memberSessions.values();
+        return List.copyOf(memberSessions.values());
     }
 
     public ClientSession getSession(String playerId) {
@@ -273,7 +304,12 @@ public class GameRoom {
     }
 
     public List<PlayerDto> getPlayers() {
-        return new ArrayList<>(players.values());
+        return List.copyOf(players.values());
     }
+
+    public RoomRuntime getRuntime() { 
+        return runtime; 
+    }
+
 }
 

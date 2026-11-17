@@ -1,4 +1,10 @@
 package com.skribbl.server.room;
+import com.skribbl.server.game.GameService;
+import com.skribbl.server.game.WordRepository;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
 
 import com.skribbl.common.model.PlayerDto;
 import com.skribbl.common.model.RoomStatus;
@@ -26,10 +32,16 @@ class RoomManagerTest {
     void setUp() throws IOException {
         dummyServerSocket = new ServerSocket(0);
         roomManager = new RoomManager();
+        attachGameRuntime();
     }
 
     @AfterEach
-    void tearDown() throws IOException {
+    void tearDown() throws IOException, InterruptedException {
+        // D?ng runtime/outbox c?a fixture, kh?ng ?? worker t?n t?i sau test.
+        roomManager.closeAll();
+        gameTasks.shutdownNow();
+        assertTrue(gameTasks.awaitTermination(3, TimeUnit.SECONDS));
+
         for (Socket s : openSockets) {
             try {
                 s.close();
@@ -123,6 +135,18 @@ class RoomManagerTest {
 
         assertEquals(0, roomManager.getRoomCount());
         assertNull(roomManager.getRoom(code));
+    }
+
+    private ExecutorService gameTasks;
+
+    private void attachGameRuntime() throws IOException {
+        gameTasks = Executors.newVirtualThreadPerTaskExecutor();
+        WordRepository words = new WordRepository(
+                WordRepository.class.getResourceAsStream("/words_en.csv"));
+        GameService games = new GameService(roomManager, words, gameTasks, System::nanoTime);
+        roomManager.setRoomCreatedHandler(games::onCreated);
+        roomManager.setJoinedHandler(games::onJoined);
+        roomManager.setLeftHandler(games::onLeft);
     }
 }
 

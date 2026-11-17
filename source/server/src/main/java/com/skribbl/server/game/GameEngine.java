@@ -50,16 +50,16 @@ public class GameEngine {
             return;
 
         if (!Objects.equals(room.getHostId(), sender.getPlayerId())) {
-            sender.sendError("PERMISSION_DENIED", "Only host can start");
+            room.sendErrorTo(sender, "PERMISSION_DENIED", "Only host can start");
             return;
         }
 
         if (room.getStatus() != RoomStatus.WAITING && room.getStatus() != RoomStatus.GAME_OVER) {
-            sender.sendError("GAME_ALREADY_RUNNING", "Game is already running");
+            room.sendErrorTo(sender, "GAME_ALREADY_RUNNING", "Game is already running");
             return;
         }
         if (room.getPlayerCount() < 2) {
-            sender.sendError("NOT_ENOUGH_PLAYERS", "Need at least 2 players");
+            room.sendErrorTo(sender, "NOT_ENOUGH_PLAYERS", "Need at least 2 players");
             return;
         }
 
@@ -137,18 +137,18 @@ public class GameEngine {
         if (room.getStatus() != RoomStatus.WORD_SELECTION
                 || !Objects.equals(sender.getPlayerId(), drawerId)
                 || dto == null || !Objects.equals(turnId, dto.turnId())) {
-            sender.sendError("INVALID_WORD_CHOICE", "Wrong player, state or turn token");
+            room.sendErrorTo(sender, "INVALID_WORD_CHOICE", "Wrong player, state or turn token");
             return;
         }
 
         if (remainingSeconds() == 0) {
             beginDrawing(0);
-            sender.sendError("CHOISE_EXPIRED", "Word was selected automatically");
+            room.sendErrorTo(sender, "CHOISE_EXPIRED", "Word was selected automatically");
             return;
         }
 
         if (dto.choiceIndex() < 0 || dto.choiceIndex() >= choices.size()) {
-            sender.sendError("INVALID_WORD_CHOICE", "Choice index must be 0..2");
+            room.sendErrorTo(sender, "INVALID_WORD_CHOICE", "Choice index must be 0..2");
             return;
         }
         beginDrawing(dto.choiceIndex());
@@ -195,7 +195,7 @@ public class GameEngine {
         TurnStartDto dto = new TurnStartDto(room.getCurrentRound(), room.getMaxRounds(), 
             drawerId, drawer == null ? "" : drawer.nickname(),
             displayFor(member), room.getDrawTimeSec());
-        member.send(MessageType.TURN_START, dto);
+        room.sendTo(member, packet(MessageType.TURN_START, dto));
     }
 
     private String displayFor(ClientSession member) {
@@ -208,8 +208,8 @@ public class GameEngine {
 
     private void sendTimerToAll() {
         for (ClientSession member : memberSnapshot()) {
-            member.send(MessageType.TIMER_UPDATE,
-                new TimerUpdateDto(remainingSeconds(), displayFor(member)));
+            room.sendTo(member, packet(MessageType.TIMER_UPDATE,
+                new TimerUpdateDto(remainingSeconds(), displayFor(member))));
         }
     }
 
@@ -266,39 +266,63 @@ public class GameEngine {
         }
     }
 
+    /**
+     * Xử lý logic ván chơi khi có một thành viên rời khỏi phòng (Leave/Disconnect).
+     *
+     * @param playerId ID của người chơi vừa rời phòng (String).
+     */
     public void onMemberLeft(String playerId) {
+        // 1. Dọn dẹp người chơi khỏi danh sách hàng đợi vẽ và danh sách đoán
         drawers.removeIf(playerId::equals);
         eligible.remove(playerId);
         guessed.remove(playerId);
 
-        if (room.getPlayerCount() < 2) {
+        // 2. Nếu phòng đang trong trận đấu mà số người chơi tụt xuống dưới 2 -> hủy ván đấu về sảnh
+        RoomStatus state = room.getStatus();
+        boolean playing = state == RoomStatus.WORD_SELECTION || state == RoomStatus.DRAWING
+                || state == RoomStatus.TURN_REVEAL;
+        if (playing && room.getPlayerCount() < 2) {
             abortGame();
             return;
         }
 
-        RoomStatus state = room.getStatus();
-        if ((state == RoomStatus.WORD_SELECTION || state == RoomStatus.DRAWING) 
+        // 3. Nếu người rời đi chính là người đang vẽ trong lượt này -> kết thúc lượt ngay lập tức
+        if ((state == RoomStatus.WORD_SELECTION || state == RoomStatus.DRAWING)
                 && Objects.equals(playerId, drawerId)) {
             finishTurn("DRAWER_LEFT");
         } else if (state == RoomStatus.DRAWING && guessed.containsAll(eligible)) {
+            // Nếu những người còn lại đều đã đoán đúng hết -> kết thúc lượt sớm
             finishTurn("ALL_GUESSED");
         }
     }
 
+    /**
+     * Xử lý logic ván chơi khi có một thành viên mới tham gia vào phòng (Join).
+     * Chạy an toàn luồng dưới khóa roomLock.
+     *
+     * @param member Phiên mạng của người chơi mới vào (ClientSession).
+     */
     public void onMemberJoined(ClientSession member) {
+        // Nếu người chơi vào đúng lúc phòng đang trong lượt vẽ (DRAWING)
         if (room.getStatus() == RoomStatus.DRAWING) {
             if (remainingSeconds() == 0) {
                 finishTurn("TIME_UP");
+                return;
             } else {
+                // Gửi thông tin lượt hiện tại, thời gian còn lại và thông báo chỉ được đoán từ lượt sau
                 sendTurnStart(member);
-                member.send(MessageType.TIMER_UPDATE,
-                        new TimerUpdateDto(remainingSeconds(), displayFor(member)));
-                member.send(MessageType.CHAT_MESSAGE, new ChatMessageDto("System",
-                        "You can guess from the next turn.", ChatKind.SYSTEM));
-                }
-            } else if (room.getStatus() == RoomStatus.TURN_REVEAL && lastEnd != null) {
-                member.send(MessageType.TURN_END, lastEnd);
+                room.sendTo(member, packet(MessageType.TIMER_UPDATE,
+                        new TimerUpdateDto(remainingSeconds(), displayFor(member))));
+                privateChat(member, "You can guess from the next turn.", ChatKind.SYSTEM);
             }
+        }
+
+        // Nếu vào đúng lúc đang công bố đáp án của lượt (TURN_REVEAL)
+        if (room.getStatus() == RoomStatus.TURN_REVEAL && lastEnd != null) {
+            TurnEndDto result = new TurnEndDto(lastEnd.word(), lastEnd.reason(),
+                    lastEnd.turnScores(), playersSnapshot());
+            room.sendTo(member, packet(MessageType.TURN_END, result));
+        }
     }
 
     public boolean canDraw(ClientSession sender) {
@@ -307,7 +331,95 @@ public class GameEngine {
     }
 
     public void onChat(ClientSession sender, ChatSendDto dto) {
-        sender.sendError("CHAT_NOT_READY", "Apply P04 before testing chat");
+        if (!isMember(sender))
+            return;
+        if (dto == null || dto.text() == null || dto.text().isBlank())
+            return;
+        String text = dto.text().strip();
+        if (text.length() > 200) {
+            room.sendErrorTo(sender, "CHAT_TOO_LONG", "Maximum 200 characters");
+            return;
+        }
+        String normalized = WordRules.normalize(text);
+        RoomStatus state = room.getStatus();
+
+        if (state == RoomStatus.DRAWING) {
+            int remaining = remainingSeconds();
+            if (remaining == 0) {
+                finishTurn("TIME_UP");
+                privateChat(sender, "Time is up.", ChatKind.SYSTEM);
+                return;
+            }
+
+            String id = sender.getPlayerId();
+            boolean canGuess = eligible.contains(id);
+            if (Objects.equals(id, drawerId) || guessed.contains(id)) {
+                privateChat(sender, "Wait until the next turn to chat.", ChatKind.SYSTEM);
+                return;
+            }
+
+            if (canGuess) {
+                if (normalized.equals(answer)) {
+                    awardCorrectGuess(sender, remaining);
+                    return;
+                }
+                if (WordRules.distance(normalized, answer) == 1) {
+                    privateChat(sender, "Your guess is close!", ChatKind.CLOSE_GUESS);
+                    return;
+                }
+            }
+
+            // Bao gồm spectator: không broadcast câu chứa nguyên đáp án.
+            if (WordRules.containsAnswer(text, answer)) {
+                if (canGuess) {
+                    privateChat(sender, "Type only the answer to submit a guess.", ChatKind.SYSTEM);
+                } else {
+                    privateChat(sender, "You can guess from the next turn.", ChatKind.SYSTEM);
+                }
+                return;
+            }
+        }
+        
+        if (state == RoomStatus.TURN_REVEAL && WordRules.containsAnswer(text, answer)) {
+            privateChat(sender, "The answer is already shown in the turn result.", ChatKind.SYSTEM);
+            return;
+        }
+
+        room.broadcast(packet(MessageType.CHAT_MESSAGE, 
+            new ChatMessageDto(sender.getNickname(), text, ChatKind.NORMAL)
+        ));
+    }
+
+    private void privateChat(ClientSession sender, String text, ChatKind kind) {
+        room.sendTo(sender, packet(MessageType.CHAT_MESSAGE,
+                new ChatMessageDto("System", text, kind)));
+    }
+
+    private void awardCorrectGuess(ClientSession sender, int remaining) {
+        String id = sender.getPlayerId();
+        // Guard cuối cùng để helper không vô tình thưởng trùng nếu caller thay đổi.
+        if (!guessed.add(id)) {
+            return;
+        }
+
+        int points = ScoreService.guessPoints(remaining, room.getDrawTimeSec());
+        int bonus = ScoreService.DRAWER_BONUS;
+
+        PlayerDto player = room.getPlayer(id);
+        room.updatePlayer(player.withScore(player.score() + points).withGuessed(true));
+        room.updatePlayerScore(drawerId, bonus);
+        
+        int previousPoints = turnScores.getOrDefault(id, 0);
+        turnScores.put(id, previousPoints + points);
+        int previousBonus = turnScores.getOrDefault(drawerId, 0);
+        turnScores.put(drawerId, previousBonus + bonus);
+
+        PlayerGuessedDto event = new PlayerGuessedDto(id, player.nickname(), 
+            points, bonus, playersSnapshot());
+        room.broadcast(packet(MessageType.PLAYER_GUESSED, event));
+        
+        if (guessed.containsAll(eligible)) 
+            finishTurn("ALL_GUESSED");
     }
 
     private boolean isMember(ClientSession sender) {

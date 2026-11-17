@@ -32,7 +32,7 @@ public final class WordRepository {
                 String word = WordRules.normalize(line);
                 if (word.isEmpty())
                     continue;
-                if (word.length() < 2 || word.length() > 40 || !word.matches("[a-z]+(?: [a-z]+)")) {
+                if (word.length() < 2 || word.length() > 40 || !word.matches("[a-z]+(?: [a-z]+)*")) {
                     throw new IOException("Invalid dataset word: " + word);
                 }
                 unique.add(word);

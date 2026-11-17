@@ -23,9 +23,10 @@ public class ServerPacketRouter {
     // Optional extension hooks for TV2 (GameEngine) and TV3 (CanvasSyncService)
     private BiConsumer<GameRoom, ClientSession> startGameHandler;
     private BiConsumer<GameRoom, DrawStrokeDto> strokeRecordedHandler;
-    private Consumer<GameRoom> clearCanvasHandler;
+    private Consumer<ClientSession> clearCanvasHandler;
     private BiConsumer<ClientSession, ChatSendDto> chatGuessHandler;
     private BiConsumer<ClientSession, ChooseWordDto> wordChoiceHandler;
+    private BiConsumer<ClientSession, DrawStrokeDto> drawStrokeHandler;
 
     public ServerPacketRouter(RoomManager roomManager) {
         this.roomManager = roomManager;
@@ -39,8 +40,12 @@ public class ServerPacketRouter {
         this.strokeRecordedHandler = strokeRecordedHandler;
     }
 
-    public void setClearCanvasHandler(Consumer<GameRoom> clearCanvasHandler) {
+    public void setClearCanvasHandler(Consumer<ClientSession> clearCanvasHandler) {
         this.clearCanvasHandler = clearCanvasHandler;
+    }
+
+    public void setDrawStrokeHandler(BiConsumer<ClientSession, DrawStrokeDto> handler) {
+        drawStrokeHandler = handler;
     }
 
     public void setChatGuessHandler(BiConsumer<ClientSession, ChatSendDto> chatGuessHandler) {
@@ -52,10 +57,19 @@ public class ServerPacketRouter {
     }
 
     /**
-     * Main packet dispatcher matching by MessageType.
+     * Định tuyến gói tin: Đọc loại gói tin NetworkMessage.type() và phân phối tới hàm xử lý tương ứng.
+     *
+     * @param session Phiên kết nối mạng của client (ClientSession).
+     * @param message Gói tin nhận được (NetworkMessage).
      */
     public void route(ClientSession session, NetworkMessage message) {
         if (message == null || message.type() == null) {
+            return;
+        }
+
+        // Bắt buộc client phải gửi CONNECT_REQ thành công trước khi gửi các gói tin khác
+        if (session.getPlayerId() == null && message.type() != MessageType.CONNECT_REQ) {
+            session.sendError("UNAUTHENTICATED", "Send CONNECT_REQ first");
             return;
         }
 
@@ -75,6 +89,12 @@ public class ServerPacketRouter {
     }
 
     private void handleConnectReq(ClientSession session, NetworkMessage message) {
+        // Nếu session đã có playerId (đã đăng ký rồi) thì không cho đăng ký lại
+        if (session.getPlayerId() != null) {
+            session.sendError("ALREADY_CONNECTED", "Nickname already registered");
+            return;
+        }
+
         ConnectReqDto dto = JsonCodec.decodePayload(message, ConnectReqDto.class);
         if (dto == null || dto.nickname() == null || dto.nickname().trim().isEmpty()) {
             session.sendError("INVALID_NICKNAME", "Nickname cannot be empty");
@@ -104,6 +124,12 @@ public class ServerPacketRouter {
         int maxRounds = (dto != null && dto.maxRounds() > 0) ? dto.maxRounds() : 3;
         int drawTimeSec = (dto != null && dto.drawTimeSec() > 0) ? dto.drawTimeSec() : 60;
 
+        // Kiểm tra tính hợp lệ của cấu hình phòng (số vòng 1..10, thời gian vẽ 15..180 giây)
+        if (maxRounds > 10 || drawTimeSec < 15 || drawTimeSec > 180) {
+            session.sendError("INVALID_ROOM_SETTINGS", "Rounds 1..10, seconds 15..180");
+            return;
+        }
+
         try {
             roomManager.createRoom(session, maxRounds, drawTimeSec);
         } catch (Exception e) {
@@ -130,110 +156,99 @@ public class ServerPacketRouter {
         }
     }
 
+    /**
+     * Xử lý khi client chủ động gửi gói tin LEAVE_ROOM (bấm nút "Rời phòng").
+     * Tham số true yêu cầu RoomManager gửi lại gói tin LEAVE_ROOM làm ACK xác nhận cho client.
+     *
+     * @param session Phiên mạng của người chơi bấm rời phòng (ClientSession).
+     */
     private void handleLeaveRoom(ClientSession session) {
-        roomManager.leaveRoom(session);
+        roomManager.leaveRoom(session, true);
     }
 
+    /**
+     * Xử lý khi client gửi gói tin START_GAME (bấm nút "Bắt đầu ván").
+     *
+     * @param session Phiên mạng của người bấm nút Bắt đầu (ClientSession).
+     */
     private void handleStartGame(ClientSession session) {
-        String roomCode = session.getCurrentRoomCode();
-        if (roomCode == null) {
-            session.sendError("NOT_IN_ROOM", "You are not in any room");
-            return;
-        }
-
-        GameRoom room = roomManager.getRoom(roomCode);
+        GameRoom room = roomManager.getRoom(session.getCurrentRoomCode());
         if (room == null) {
-            session.sendError("ROOM_NOT_FOUND", "Room not found");
+            session.sendError("NOT_IN_ROOM", "Join a room first");
             return;
         }
-
-        if (!room.getHostId().equals(session.getPlayerId())) {
-            session.sendError("PERMISSION_DENIED", "Only room host can start the game");
+        if (startGameHandler == null) {
+            session.sendError("GAME_NOT_READY", "Start handler is not connected");
             return;
         }
-
-        if (room.getPlayerCount() < 2) {
-            session.sendError("NOT_ENOUGH_PLAYERS", "Need at least 2 players to start game");
-            return;
-        }
-
-        if (startGameHandler != null) {
-            startGameHandler.accept(room, session);
-        } else {
-            // Default placeholder if GameEngine is not yet hooked up
-            room.broadcastSystemChat("Game starting by Host " + session.getNickname() + "!");
-        }
+        startGameHandler.accept(room, session);
     }
 
+    /**
+     * Xử lý khi nhận gói tin nét vẽ DRAW_STROKE từ client:
+     * Giải mã payload thành DrawStrokeDto và chuyển cho drawStrokeHandler (GameService).
+     *
+     * @param session Phiên mạng của người vẽ (ClientSession).
+     * @param message Gói tin chứa payload nét vẽ (NetworkMessage).
+     */
     private void handleDrawStroke(ClientSession session, NetworkMessage message) {
-        String roomCode = session.getCurrentRoomCode();
-        if (roomCode == null) return;
-
-        GameRoom room = roomManager.getRoom(roomCode);
-        if (room == null) return;
-
-        // Enforce drawer permission when an active drawer is assigned
-        if (room.getCurrentDrawerId() != null && !room.getCurrentDrawerId().equals(session.getPlayerId())) {
+        if (drawStrokeHandler == null) {
+            session.sendError("GAME_NOT_READY", "Drawing handler is not connected");
             return;
         }
-
-        // Relay stroke to all other players in the room
-        room.broadcastExcept(session.getPlayerId(), message);
-
-        if (strokeRecordedHandler != null) {
-            DrawStrokeDto dto = JsonCodec.decodePayload(message, DrawStrokeDto.class);
-            if (dto != null) {
-                strokeRecordedHandler.accept(room, dto);
-            }
-        }
+        DrawStrokeDto dto = JsonCodec.decodePayload(message, DrawStrokeDto.class);
+        drawStrokeHandler.accept(session, dto);
     }
 
+    /**
+     * Xử lý khi nhận gói tin CLEAR_CANVAS từ client.
+     *
+     * @param session Phiên mạng của người gửi yêu cầu xóa bảng (ClientSession).
+     * @param message Gói tin yêu cầu (NetworkMessage).
+     */
     private void handleClearCanvas(ClientSession session, NetworkMessage message) {
-        String roomCode = session.getCurrentRoomCode();
-        if (roomCode == null) return;
-
-        GameRoom room = roomManager.getRoom(roomCode);
-        if (room == null) return;
-
-        // Enforce drawer permission when an active drawer is assigned
-        if (room.getCurrentDrawerId() != null && !room.getCurrentDrawerId().equals(session.getPlayerId())) {
+        if (clearCanvasHandler == null) {
+            session.sendError("GAME_NOT_READY", "Clear handler is not connected");
             return;
         }
-
-        room.broadcastExcept(session.getPlayerId(), message);
-
-        if (clearCanvasHandler != null) {
-            clearCanvasHandler.accept(room);
-        }
+        clearCanvasHandler.accept(session);
     }
 
+    /**
+     * Xử lý khi nhận gói tin CHAT_SEND (tin nhắn chat hoặc đoán từ) từ client.
+     *
+     * @param session Phiên mạng của người gửi tin (ClientSession).
+     * @param message Gói tin chứa nội dung chat (NetworkMessage).
+     */
     private void handleChatSend(ClientSession session, NetworkMessage message) {
-        ChatSendDto dto = JsonCodec.decodePayload(message, ChatSendDto.class);
-        if (dto == null || dto.text() == null || dto.text().isBlank()) {
+        if (chatGuessHandler == null) {
+            session.sendError("GAME_NOT_READY", "Chat handler is not connected");
             return;
         }
-
-        if (chatGuessHandler != null) {
-            chatGuessHandler.accept(session, dto);
-            return;
-        }
-
-        // Default: broadcast chat to everyone in the room
-        String roomCode = session.getCurrentRoomCode();
-        if (roomCode == null) return;
-
-        GameRoom room = roomManager.getRoom(roomCode);
-        if (room == null) return;
-
-        ChatMessageDto chat = new ChatMessageDto(session.getNickname(), dto.text().trim(), ChatKind.NORMAL);
-        room.broadcast(NetworkMessage.of(MessageType.CHAT_MESSAGE, JsonCodec.toNode(chat)));
+        chatGuessHandler.accept(session, JsonCodec.decodePayload(message, ChatSendDto.class));
     }
 
+    /**
+     * Xử lý khi người vẽ chọn từ khóa (CHOOSE_WORD).
+     * Kiểm tra choiceIndex phải là số nguyên hợp lệ trước khi gọi handler.
+     *
+     * @param session Phiên mạng của người vẽ (ClientSession).
+     * @param message Gói tin chứa DTO chọn từ (NetworkMessage).
+     */
     private void handleChooseWord(ClientSession session, NetworkMessage message) {
-        ChooseWordDto dto = JsonCodec.decodePayload(message, ChooseWordDto.class);
-        if (dto != null && wordChoiceHandler != null) {
-            wordChoiceHandler.accept(session, dto);
+        // Kiểm tra tính hợp lệ của choiceIndex trong payload JSON
+        if (message.payload() == null || !message.payload().hasNonNull("choiceIndex")
+                || !message.payload().get("choiceIndex").isIntegralNumber()
+                || !message.payload().get("choiceIndex").canConvertToInt()) {
+            session.sendError("BAD_PAYLOAD", "choiceIndex must be an integer");
+            return;
         }
+
+        if (wordChoiceHandler == null) {
+            session.sendError("GAME_NOT_READY", "Choice handler is not connected");
+            return;
+        }
+        wordChoiceHandler.accept(session, JsonCodec.decodePayload(message, ChooseWordDto.class));
     }
 }
 
