@@ -28,7 +28,7 @@ public class CanvasSyncService {
         this.room = java.util.Objects.requireNonNull(room);
     }
 
-    // Callback của engine; các thay đổi outbox còn lại thực hiện khi tới mục 8 P05.
+    // Engine gọi khi bắt đầu lượt hoặc trở về sảnh: xóa lịch sử và báo các client xóa bảng.
     public void reset() {
         clearHistory();
         if (room != null) {

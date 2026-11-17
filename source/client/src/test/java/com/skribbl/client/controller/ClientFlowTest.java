@@ -10,12 +10,15 @@ import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.*;
 import java.net.*;
@@ -33,6 +36,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ClientFlowTest {
     private ClientController controller;
     private GameView game;
+    private LobbyView lobby;
     private ServerSocket listener;
     private Peer peer;
     private final AtomicInteger joins = new AtomicInteger();
@@ -72,7 +76,8 @@ class ClientFlowTest {
             controller = new ClientController("Tester");
             game = new GameView(controller);
             controller.setGameView(game);
-            controller.setLobbyView(new LobbyView(controller, () -> {}));
+            lobby = new LobbyView(controller, () -> {});
+            controller.setLobbyView(lobby);
             controller.setOnRoomJoinedCallback(room -> joins.incrementAndGet());
             controller.setOnRoomLeftCallback(leaves::incrementAndGet);
             return null;
@@ -101,6 +106,41 @@ class ClientFlowTest {
         // Cập nhật cùng phòng không được gọi callback chuyển scene lần thứ hai.
         peer.send(MessageType.ROOM_UPDATE, room("ROOM1", RoomStatus.WAITING));
         drainIncoming();
+        assertEquals(1, joins.get());
+    }
+
+    /** Bấm nút thật ở lobby: cả tạo/vào phòng phải dùng cổng đã nhập, không giữ cứng 8888. */
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void lobbyUsesConfiguredPortForRoomRequests(boolean joining) throws Exception {
+        fx(() -> {
+            VBox card = (VBox) lobby.getChildren().get(1);
+            HBox serverBox = (HBox) card.getChildren().get(1);
+            TextField port = (TextField) serverBox.getChildren().get(1);
+            HBox joinBox = (HBox) card.getChildren().get(9);
+            ((TextField) joinBox.getChildren().getFirst()).setText("ABCD2");
+            Button action = joining ? (Button) joinBox.getChildren().getLast()
+                    : (Button) card.getChildren().get(6);
+            // Dữ liệu sai phải báo tại view trước khi mở socket.
+            for (String invalid : List.of("", "abc", "0", "65536")) {
+                port.setText(invalid);
+                action.fire();
+                assertEquals("Cổng TCP phải là số từ 1 đến 65535.",
+                        ((Label) card.getChildren().getLast()).getText());
+                assertFalse(port.isDisabled());
+            }
+            port.setText(Integer.toString(listener.getLocalPort()));
+            action.fire();
+            assertTrue(port.isDisabled());
+            return null;
+        });
+        peer = new Peer(listener.accept());
+        peer.expect(MessageType.CONNECT_REQ);
+        peer.send(MessageType.CONNECT_ACK, new ConnectAckDto("A", "Tester"));
+        peer.expect(joining ? MessageType.JOIN_ROOM : MessageType.CREATE_ROOM);
+        peer.send(MessageType.ROOM_UPDATE, room("ABCD2", RoomStatus.WAITING));
+        drainIncoming();
+        assertEquals("ABCD2", fx(controller::getCurrentRoomCode));
         assertEquals(1, joins.get());
     }
 

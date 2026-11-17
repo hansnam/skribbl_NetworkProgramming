@@ -10,8 +10,8 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 
 /**
- * Điểm khởi động JavaFX do TV3 quản lý. P06 chỉ ghép LobbyView và callback vào/rời phòng;
- * giữ một controller và một Scene để các view nhận cùng trạng thái kết nối.
+ * Điểm khởi động JavaFX: khởi tạo sảnh chờ, màn hình chơi và các callback vào/rời phòng.
+ * Dùng chung một controller và một Scene để giữ trạng thái kết nối khi chuyển màn hình.
  */
 public class ClientMain extends Application {
     private ClientController controller;
@@ -23,20 +23,20 @@ public class ClientMain extends Application {
         GameView gameView = new GameView(controller);
         controller.setGameView(gameView);
 
-        // Giữ cách tính kích thước theo màn hình của TV3, không đổi layout theo mẫu tài liệu.
+        // Giới hạn cửa sổ ở 85% vùng màn hình khả dụng, tối đa 1150 x 680 pixel.
         Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
         double initialWidth = Math.min(1150, screenBounds.getWidth() * 0.85);
         double initialHeight = Math.min(680, screenBounds.getHeight() * 0.85);
 
         LobbyView initialLobby = new LobbyView(controller, () -> {
-            // P08/TV3: enterOfflineMode phải kiểm tra trạng thái online trước khi bật vẽ thử.
-            // Callback chỉ đổi nội dung cửa sổ, không tự mở một kết nối khác.
+            // Chỉ mở màn hình vẽ thử khi controller xác nhận có thể chuyển sang ngoại tuyến.
+            // Nếu vẫn đang kết nối server, giữ sảnh chờ để hiển thị lý do từ chối.
             if (controller.enterOfflineMode()) {
                 primaryStage.getScene().setRoot(gameView);
             }
         });
 
-        // API P08/TV3: giữ đúng view đang hiển thị để báo lỗi và mở/khóa controls.
+        // Controller cập nhật thông báo và khóa/mở các ô nhập trên chính sảnh đang hiển thị.
         controller.setLobbyView(initialLobby);
         Scene scene = new Scene(initialLobby, initialWidth, initialHeight);
         // Controller gọi sau ROOM_UPDATE xác nhận đã vào phòng, không phải ngay khi nối TCP.
@@ -46,7 +46,7 @@ public class ClientMain extends Application {
         });
 
         // Dùng lại sảnh cũ để controller không giữ reference tới một view đã bị thay thế.
-        // P08/TV3 phải gọi callback sau LEAVE ACK hoặc disconnect, không gọi ngay sau send.
+        // Callback chạy sau khi server xác nhận rời phòng hoặc khi mất kết nối.
         controller.setOnRoomLeftCallback(() -> {
             primaryStage.setTitle("Skribbl Client");
             scene.setRoot(initialLobby);

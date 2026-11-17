@@ -20,7 +20,7 @@ public class ServerPacketRouter {
 
     private final RoomManager roomManager;
 
-    // Optional extension hooks for TV2 (GameEngine) and TV3 (CanvasSyncService)
+    // Callback chuyển yêu cầu từ gói tin mạng sang logic lượt chơi và đồng bộ bảng vẽ.
     private BiConsumer<GameRoom, ClientSession> startGameHandler;
     private BiConsumer<GameRoom, DrawStrokeDto> strokeRecordedHandler;
     private Consumer<ClientSession> clearCanvasHandler;

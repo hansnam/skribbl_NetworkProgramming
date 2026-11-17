@@ -2,7 +2,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 /**
- * Cho Maven tự chạy các kịch bản server trong P08, không cần client JavaFX/P08a.
+ * Cho Maven tự chạy các kịch bản ván đấu phòng riêng bằng socket thật, không cần mở client JavaFX.
  * Mỗi test có socket, phòng và clock giả riêng; try-with-resources dọn fixture cả khi fail.
  */
 @Timeout(15)

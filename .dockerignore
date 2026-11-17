@@ -1,0 +1,14 @@
+.git
+.idea
+.vscode
+.agents
+.codex
+.aws
+docs
+tmp
+**/target
+**/out
+**/build
+**/*.log
+**/.env
+**/.env.*

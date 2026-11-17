@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Lớp kiểm thử độc lập luồng ván đấu phòng riêng (Private Room Flow Verification):
- * Chạy trực tiếp qua hàm main mà không phụ thuộc vào bộ test JavaFX hay JUnit của TV1.
+ * Có thể chạy trực tiếp qua hàm main, không cần khởi động JavaFX hay trình chạy JUnit.
  * Tự khởi tạo ServerSocket loopback, ClientSession, GameService và đồng hồ thời gian giả lập AtomicLong.
  */
 public final class PrivateFlowCheck implements AutoCloseable {

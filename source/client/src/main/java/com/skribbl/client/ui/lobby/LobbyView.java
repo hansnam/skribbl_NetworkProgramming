@@ -5,6 +5,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
@@ -13,14 +14,16 @@ import java.util.Locale;
 import java.util.UUID;
 
 /**
- * Sảnh chờ do TV2 bổ sung trên bố cục của TV3.
+ * Sảnh chờ để nhập thông tin kết nối, tạo phòng, vào phòng hoặc mở chế độ vẽ thử.
  * View kiểm tra dữ liệu và hiển thị trạng thái; ClientController phụ trách kết nối,
- * chờ CONNECT_ACK và gửi yêu cầu phòng theo phần tích hợp của TV3 ở P08.
+ * chờ CONNECT_ACK xác nhận đăng ký người chơi rồi mới gửi yêu cầu tạo hoặc vào phòng.
  * Các handler và method cập nhật control chạy trên JavaFX Application Thread.
  */
 public class LobbyView extends VBox {
-    // Dùng lại các ô trên card hiện có, không dựng một màn hình kết nối khác.
+    // Địa chỉ kết nối và thông tin người chơi được nhập trực tiếp tại sảnh chờ.
     private final TextField hostField;
+    // Hosting TCP có thể cấp cổng công khai khác 8888; vẫn dùng 8888 khi chạy local.
+    private final TextField portField;
     private final TextField nicknameField;
     private final TextField roomCodeField;
     private final Label statusLabel;
@@ -35,7 +38,7 @@ public class LobbyView extends VBox {
     private boolean busy;
 
     /**
-     * Giữ card, màu sắc và kích thước giao diện TV3; chỉ nối các handler của P06.
+     * Khởi tạo các ô nhập, cấu hình phòng và nút thao tác; nối sự kiện với controller.
      *
      * @param controller bộ điều khiển dùng chung với GameView, không mở socket riêng ở view
      * @param onOfflineMode callback do ClientMain cung cấp để mở chế độ vẽ thử
@@ -57,9 +60,15 @@ public class LobbyView extends VBox {
         card.setAlignment(Pos.CENTER_LEFT);
         card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 10;");
 
-        Label hostLbl = new Label("Địa chỉ IP Server:");
+        Label hostLbl = new Label("Địa chỉ server / Cổng TCP:");
         hostLbl.setFont(Font.font("System", FontWeight.BOLD, 13));
         hostField = new TextField("127.0.0.1");
+        hostField.setPromptText("IP hoặc tên miền");
+        portField = new TextField("8888");
+        portField.setPrefWidth(80);
+        portField.setMaxWidth(80);
+        HBox serverBox = new HBox(8, hostField, portField);
+        HBox.setHgrow(hostField, Priority.ALWAYS);
 
         Label nameLbl = new Label("Tên hiển thị (Nickname):");
         nameLbl.setFont(Font.font("System", FontWeight.BOLD, 13));
@@ -106,7 +115,7 @@ public class LobbyView extends VBox {
         });
 
         card.getChildren().addAll(
-                hostLbl, hostField,
+                hostLbl, serverBox,
                 nameLbl, nicknameField,
                 new Label("Số vòng / giây mỗi lượt"), new HBox(8, rounds, seconds),
                 createBtn, sep,
@@ -118,17 +127,27 @@ public class LobbyView extends VBox {
     }
 
     /**
-     * Kiểm tra tính hợp lệ của thông tin kết nối và danh tính người chơi (Host và Nickname).
+     * Kiểm tra tính hợp lệ của host, cổng TCP và nickname.
      * Được gọi trước khi thực hiện Tạo phòng hoặc Vào phòng.
      *
      * @return boolean:
-     *         - true: Thông tin hợp lệ (host không rỗng, nickname từ 1 đến 20 ký tự).
+     *         - true: Host không rỗng, cổng từ 1 đến 65535, nickname từ 1 đến 20 ký tự.
      *         - false: Không hợp lệ, hiển thị thông báo lỗi lên statusLabel.
      */
     private boolean validIdentity() {
         String name = nicknameField.getText().strip();
         if (hostField.getText().isBlank() || name.isEmpty() || name.length() > 20) {
             showError("Nhập host và nickname từ 1 đến 20 ký tự.");
+            return false;
+        }
+        // Cổng công khai phải được nhập riêng, không ghép domain:port vào ô host.
+        try {
+            int port = Integer.parseInt(portField.getText().strip());
+            if (port < 1 || port > 65535) {
+                throw new NumberFormatException();
+            }
+        } catch (NumberFormatException e) {
+            showError("Cổng TCP phải là số từ 1 đến 65535.");
             return false;
         }
         return true;
@@ -138,16 +157,16 @@ public class LobbyView extends VBox {
      * Xử lý khi người dùng bấm nút "Tạo phòng mới":
      * Chạy trên JavaFX Application Thread, chuyển yêu cầu requestCreateRoom cho ClientController
      * để xử lý kết nối socket nền và gửi gói tin CREATE_ROOM.
-     * API requestCreateRoom do TV3 triển khai ở P08: nếu chưa đăng ký thì chờ
-     * CONNECT_ACK trước khi tạo phòng; nếu đã đăng ký thì dùng lại kết nối.
+     * Controller chờ CONNECT_ACK nếu người chơi chưa đăng ký; nếu đã đăng ký thì
+     * dùng lại kết nối hiện tại để gửi yêu cầu tạo phòng.
      */
     private void create() {
         // Nếu đang chờ phản hồi từ server (busy) hoặc thông tin nhập chưa hợp lệ thì bỏ qua
         if (busy || !validIdentity()) {
             return;
         }
-        // Không gọi connectToServer ở đây. Controller P08 quản lý busy và phản hồi lỗi.
-        controller.requestCreateRoom(hostField.getText().strip(), 8888,
+        // Controller quản lý kết nối nền, trạng thái chờ phản hồi và thông báo lỗi.
+        controller.requestCreateRoom(hostField.getText().strip(), Integer.parseInt(portField.getText().strip()),
                 nicknameField.getText().strip(), rounds.getValue(), seconds.getValue());
     }
 
@@ -166,8 +185,8 @@ public class LobbyView extends VBox {
             showError("Mã phòng cần đúng 5 ký tự.");
             return;
         }
-        // API P08 do TV3 ghép; chỉ ROOM_UPDATE xác nhận membership mới chuyển sang GameView.
-        controller.requestJoinRoom(hostField.getText().strip(), 8888,
+        // Controller chỉ chuyển sang GameView sau khi ROOM_UPDATE xác nhận đã vào phòng.
+        controller.requestJoinRoom(hostField.getText().strip(), Integer.parseInt(portField.getText().strip()),
                 nicknameField.getText().strip(), code);
     }
 
@@ -177,12 +196,13 @@ public class LobbyView extends VBox {
      * và nút bấm, ngăn người dùng click liên tục nhiều lần trong khi đang chờ phản hồi từ server.
      *
      * @param value true: Khóa tất cả các điều khiển và hiện "Đang đợi server..."; false: Mở khóa lại.
-     * Controller P08 phải mở lại khi có kết quả, ERROR_MSG, timeout hoặc mất kết nối.
+     * Controller mở lại các điều khiển khi nhận kết quả, báo lỗi, hết thời gian chờ hoặc mất kết nối.
      */
     public void setBusy(boolean value) {
         // Lưu cờ cho handler Enter; chỉ disable nút không chặn được mọi đường gọi join().
         busy = value;
         hostField.setDisable(value);
+        portField.setDisable(value);
         nicknameField.setDisable(value);
         roomCodeField.setDisable(value);
         rounds.setDisable(value);

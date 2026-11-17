@@ -32,7 +32,7 @@ public class GameView extends BorderPane {
     private boolean roomBusy;
     private boolean offline;
 
-    /** Giữ bố cục/style TV3; chỉ gắn thêm controls phòng và API chat của TV2. */
+    /** Tạo màn hình chơi gồm trạng thái lượt, danh sách người chơi, bảng vẽ, chat và nút quản lý phòng. */
     public GameView(ClientController controller) {
         this.topStatusBar = new TopStatusBar();
         this.playerListPanel = new PlayerListPanel();
