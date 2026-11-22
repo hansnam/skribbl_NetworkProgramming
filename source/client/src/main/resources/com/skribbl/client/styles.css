@@ -1,0 +1,118 @@
+/* Skribbl.io Inspired Theme for JavaFX Client */
+.root {
+    -fx-font-family: "Segoe UI", "Arial Rounded MT Bold", sans-serif;
+    -fx-background-color: linear-gradient(to bottom right, #1b3b82, #152c62);
+}
+
+.skribbl-card {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 14;
+    -fx-border-color: #cbd5e1;
+    -fx-border-radius: 14;
+    -fx-border-width: 2;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.28), 16, 0.15, 0, 5);
+}
+
+.btn-play {
+    -fx-background-color: #53d13a;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 15px;
+    -fx-background-radius: 8;
+    -fx-border-color: #389b24;
+    -fx-border-width: 0 0 3 0;
+    -fx-border-radius: 8;
+    -fx-cursor: hand;
+}
+.btn-play:hover {
+    -fx-background-color: #46bc2f;
+}
+
+.btn-create {
+    -fx-background-color: #3b9df8;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-background-radius: 8;
+    -fx-border-color: #1e78c8;
+    -fx-border-width: 0 0 3 0;
+    -fx-border-radius: 8;
+    -fx-cursor: hand;
+}
+.btn-create:hover {
+    -fx-background-color: #2589e8;
+}
+
+.btn-join {
+    -fx-background-color: #6366f1;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-background-radius: 8;
+    -fx-border-color: #4338ca;
+    -fx-border-width: 0 0 3 0;
+    -fx-border-radius: 8;
+    -fx-cursor: hand;
+}
+.btn-join:hover {
+    -fx-background-color: #4f46e5;
+}
+
+.btn-danger {
+    -fx-background-color: #ef4444;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 7;
+    -fx-cursor: hand;
+}
+.btn-danger:hover {
+    -fx-background-color: #dc2626;
+}
+
+.btn-tool {
+    -fx-background-color: #ffffff;
+    -fx-text-fill: #1e293b;
+    -fx-font-weight: bold;
+    -fx-background-radius: 7;
+    -fx-border-color: #cbd5e1;
+    -fx-border-radius: 7;
+    -fx-border-width: 1.5;
+    -fx-cursor: hand;
+}
+.btn-tool:hover {
+    -fx-background-color: #f1f5f9;
+}
+.btn-tool-active {
+    -fx-background-color: #dbeafe;
+    -fx-text-fill: #1d4ed8;
+    -fx-font-weight: bold;
+    -fx-background-radius: 7;
+    -fx-border-color: #2563eb;
+    -fx-border-radius: 7;
+    -fx-border-width: 2;
+    -fx-cursor: hand;
+}
+
+.top-bar {
+    -fx-background-color: #162a5c;
+    -fx-border-color: #2c4a8e;
+    -fx-border-width: 0 0 2 0;
+}
+
+.timer-badge {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 22;
+    -fx-border-color: #22c55e;
+    -fx-border-width: 3;
+    -fx-border-radius: 22;
+    -fx-padding: 4 12 4 12;
+}
+
+.word-hint-box {
+    -fx-background-color: #0f1f47;
+    -fx-background-radius: 10;
+    -fx-border-color: #3b63b8;
+    -fx-border-radius: 10;
+    -fx-border-width: 1.5;
+    -fx-padding: 4 16 4 16;
+}

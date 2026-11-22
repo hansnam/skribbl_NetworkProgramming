@@ -3,7 +3,7 @@ package com.skribbl.common.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Represents a single stroke segment drawn on the canvas.
+ * Represents a single stroke segment or flood-fill action drawn on the canvas.
  */
 public record StrokeData(
         @JsonProperty("x1") double x1,
@@ -12,7 +12,17 @@ public record StrokeData(
         @JsonProperty("y2") double y2,
         @JsonProperty("color") String color,
         @JsonProperty("thickness") int thickness,
-        @JsonProperty("eraser") boolean eraser
+        @JsonProperty("eraser") boolean eraser,
+        @JsonProperty("strokeGroupId") String strokeGroupId,
+        @JsonProperty("fill") boolean fill
 ) {
-}
+    public StrokeData {
+        if (strokeGroupId == null) {
+            strokeGroupId = "";
+        }
+    }
 
+    public StrokeData(double x1, double y1, double x2, double y2, String color, int thickness, boolean eraser) {
+        this(x1, y1, x2, y2, color, thickness, eraser, "", false);
+    }
+}

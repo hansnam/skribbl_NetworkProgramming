@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 public final class WordRepository {
     private final List<String> words;
@@ -47,5 +48,26 @@ public final class WordRepository {
         List<String> shuffled = new ArrayList<>(words);
         Collections.shuffle(shuffled, random);
         return List.copyOf(shuffled.subList(0, 3));
+    }
+
+    /**
+     * Picks 3 distinct words prioritizing words not yet used in the current match.
+     * Falls back to previously used words if fewer than 3 unused words remain.
+     */
+    public List<String> pickThreeExcluding(Random random, Set<String> excluded) {
+        if (excluded == null || excluded.isEmpty()) {
+            return pickThree(random);
+        }
+        List<String> available = new ArrayList<>();
+        for (String w : words) {
+            if (!excluded.contains(w)) {
+                available.add(w);
+            }
+        }
+        if (available.size() >= 3) {
+            Collections.shuffle(available, random);
+            return List.copyOf(available.subList(0, 3));
+        }
+        return pickThree(random);
     }
 }

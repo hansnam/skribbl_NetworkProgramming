@@ -8,7 +8,10 @@ public record TurnStartDto(
         @JsonProperty("drawerId") String drawerId,
         @JsonProperty("drawerNickname") String drawerNickname,
         @JsonProperty("wordDisplay") String wordDisplay,
-        @JsonProperty("drawTimeSec") int drawTimeSec
+        @JsonProperty("drawTimeSec") int drawTimeSec,
+        @JsonProperty("canGuess") boolean canGuess
 ) {
+    public TurnStartDto(int round, int maxRounds, String drawerId, String drawerNickname, String wordDisplay, int drawTimeSec) {
+        this(round, maxRounds, drawerId, drawerNickname, wordDisplay, drawTimeSec, true);
+    }
 }
-

@@ -11,22 +11,36 @@ public record PlayerDto(
         @JsonProperty("score") int score,
         @JsonProperty("isHost") boolean isHost,
         @JsonProperty("isDrawer") boolean isDrawer,
-        @JsonProperty("hasGuessed") boolean hasGuessed
+        @JsonProperty("hasGuessed") boolean hasGuessed,
+        @JsonProperty("avatar") AvatarDto avatar
 ) {
+    public PlayerDto {
+        if (avatar == null) {
+            avatar = AvatarDto.DEFAULT;
+        }
+    }
+
+    public PlayerDto(String id, String nickname, int score, boolean isHost, boolean isDrawer, boolean hasGuessed) {
+        this(id, nickname, score, isHost, isDrawer, hasGuessed, AvatarDto.DEFAULT);
+    }
+
     public PlayerDto withScore(int newScore) {
-        return new PlayerDto(id, nickname, newScore, isHost, isDrawer, hasGuessed);
+        return new PlayerDto(id, nickname, newScore, isHost, isDrawer, hasGuessed, avatar);
     }
 
     public PlayerDto withHost(boolean newIsHost) {
-        return new PlayerDto(id, nickname, score, newIsHost, isDrawer, hasGuessed);
+        return new PlayerDto(id, nickname, score, newIsHost, isDrawer, hasGuessed, avatar);
     }
 
     public PlayerDto withDrawer(boolean newIsDrawer) {
-        return new PlayerDto(id, nickname, score, isHost, newIsDrawer, hasGuessed);
+        return new PlayerDto(id, nickname, score, isHost, newIsDrawer, hasGuessed, avatar);
     }
 
     public PlayerDto withGuessed(boolean newHasGuessed) {
-        return new PlayerDto(id, nickname, score, isHost, isDrawer, newHasGuessed);
+        return new PlayerDto(id, nickname, score, isHost, isDrawer, newHasGuessed, avatar);
+    }
+
+    public PlayerDto withAvatar(AvatarDto newAvatar) {
+        return new PlayerDto(id, nickname, score, isHost, isDrawer, hasGuessed, newAvatar);
     }
 }
-

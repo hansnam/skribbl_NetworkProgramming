@@ -12,6 +12,7 @@ public enum MessageType {
     PONG,
 
     // Room & Lobby Management
+    QUICK_JOIN,
     CREATE_ROOM,
     JOIN_ROOM,
     LEAVE_ROOM,
@@ -28,8 +29,11 @@ public enum MessageType {
 
     // Real-time Canvas Drawing
     DRAW_STROKE,
+    FILL_CANVAS,
+    UNDO_CANVAS,
     CLEAR_CANVAS,
     CANVAS_SYNC,
+    DRAW_REACTION,
 
     // Chat & Guessing
     CHAT_SEND,
@@ -39,4 +43,3 @@ public enum MessageType {
     // System & Errors
     ERROR_MSG
 }
-

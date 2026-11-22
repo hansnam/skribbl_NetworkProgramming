@@ -1,59 +1,76 @@
 package com.skribbl.server.room;
 
-import com.skribbl.common.dto.ChatMessageDto;
 import com.skribbl.common.dto.ChatKind;
+import com.skribbl.common.dto.ChatMessageDto;
+import com.skribbl.common.dto.ErrorMsgDto;
 import com.skribbl.common.dto.RoomUpdateDto;
 import com.skribbl.common.model.PlayerDto;
 import com.skribbl.common.model.RoomStatus;
+import com.skribbl.common.model.RoomType;
 import com.skribbl.common.protocol.JsonCodec;
 import com.skribbl.common.protocol.MessageType;
 import com.skribbl.common.protocol.NetworkMessage;
-import com.skribbl.server.net.ClientSession;
-import com.skribbl.common.dto.ErrorMsgDto;
 import com.skribbl.server.game.RoomOutboundDispatcher.Delivery;
 import com.skribbl.server.game.RoomRuntime;
+import com.skribbl.server.net.ClientSession;
 
-import java.util.TreeSet;
-import java.util.function.Supplier;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
  * Represents an isolated multi-player game room instance.
- * Thread-safe management of room members, host election, and messaging.
+ * Thread-safe management of room members, host election, modes (PUBLIC/PRIVATE), and messaging.
  */
 public class GameRoom {
 
+    public static final int DEFAULT_MAX_PLAYERS = 6;
+
     private final String roomCode;
+    private final RoomType roomType;
     private final int maxRounds;
     private final int drawTimeSec;
+    private final int maxPlayers;
+    private final long createdAtNano;
     private final Object roomLock = new Object();
 
     private volatile String hostId;
     private volatile RoomStatus status = RoomStatus.WAITING;
     private volatile int currentRound = 0;
     private volatile String currentDrawerId = null;
+    private volatile Integer startInSec = null;
     private RoomRuntime runtime;
     private List<Delivery> currentBatch;
 
     private final ConcurrentHashMap<String, ClientSession> memberSessions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, PlayerDto> players = new ConcurrentHashMap<>();
 
-    public GameRoom(String roomCode, int maxRounds, int drawTimeSec) {
+    public GameRoom(String roomCode, RoomType roomType, int maxRounds, int drawTimeSec, int maxPlayers) {
         this.roomCode = Objects.requireNonNull(roomCode, "roomCode cannot be null");
+        this.roomType = roomType != null ? roomType : RoomType.PRIVATE;
         this.maxRounds = maxRounds > 0 ? maxRounds : 3;
         this.drawTimeSec = drawTimeSec > 0 ? drawTimeSec : 60;
+        this.maxPlayers = maxPlayers > 0 ? maxPlayers : DEFAULT_MAX_PLAYERS;
+        this.createdAtNano = System.nanoTime();
+    }
+
+    public GameRoom(String roomCode, RoomType roomType, int maxRounds, int drawTimeSec) {
+        this(roomCode, roomType, maxRounds, drawTimeSec, DEFAULT_MAX_PLAYERS);
+    }
+
+    public GameRoom(String roomCode, int maxRounds, int drawTimeSec) {
+        this(roomCode, RoomType.PRIVATE, maxRounds, drawTimeSec, DEFAULT_MAX_PLAYERS);
     }
 
     /**
      * Adds a player session to this room.
      *
      * @param session ClientSession of joining player
-     * @return true if added, false if duplicate nickname or invalid
+     * @return true if added, false if duplicate nickname, room full, or invalid
      */
     public boolean addPlayer(ClientSession session) {
         return withStateLock(() -> {
@@ -63,17 +80,33 @@ public class GameRoom {
                 return false;
             }
 
-            boolean first = players.isEmpty();
-            if (first)
-                hostId = session.getPlayerId();
+            if (players.size() >= maxPlayers) {
+                return false;
+            }
+
+            String playerId = session.getPlayerId();
+            boolean isHost = false;
+
+            if (roomType == RoomType.PRIVATE) {
+                boolean isFirst = players.isEmpty();
+                if (isFirst) {
+                    this.hostId = playerId;
+                    isHost = true;
+                }
+            } else {
+                // PUBLIC rooms NEVER have a host
+                this.hostId = null;
+                isHost = false;
+            }
 
             PlayerDto player = new PlayerDto(
-                session.getPlayerId(), 
-                nickname.strip(), 
-                0, 
-                first, 
-                false, 
-                false
+                    playerId,
+                    nickname.strip(),
+                    0,
+                    isHost,
+                    false,
+                    false,
+                    session.getAvatar()
             );
 
             players.put(player.id(), player);
@@ -93,7 +126,7 @@ public class GameRoom {
         return withStateLock(() -> {
             ClientSession session = memberSessions.remove(playerId);
             PlayerDto removed = players.remove(playerId);
-            
+
             if (session != null) {
                 session.setCurrentRoomCode(null);
             }
@@ -101,11 +134,16 @@ public class GameRoom {
                 return players.size();
 
             broadcastSystemChat(removed.nickname() + " left the room.");
-            if (Objects.equals(hostId, playerId)) {
+            if (roomType == RoomType.PRIVATE && Objects.equals(hostId, playerId)) {
                 hostId = null;
                 if (!players.isEmpty()) {
                     hostId = new TreeSet<>(players.keySet()).first();
                     players.put(hostId, players.get(hostId).withHost(true));
+                }
+            } else if (roomType == RoomType.PUBLIC) {
+                this.hostId = null;
+                if (players.size() < 2) {
+                    startInSec = null;
                 }
             }
             return players.size();
@@ -127,7 +165,7 @@ public class GameRoom {
     public void broadcastExcept(String excludePlayerId, NetworkMessage message) {
         for (ClientSession session : memberSessions.values()) {
             if (!Objects.equals(session.getPlayerId(), excludePlayerId)) {
-                sendTo(session, message);;
+                sendTo(session, message);
             }
         }
     }
@@ -138,7 +176,7 @@ public class GameRoom {
     public void unicast(String playerId, NetworkMessage message) {
         ClientSession session = memberSessions.get(playerId);
         if (session != null) {
-            sendTo(memberSessions.get(playerId), message);
+            sendTo(session, message);
         }
     }
 
@@ -155,12 +193,15 @@ public class GameRoom {
     public RoomUpdateDto createRoomUpdateDto() {
         return new RoomUpdateDto(
                 roomCode,
+                roomType,
                 hostId,
                 status,
                 List.copyOf(players.values()),
                 maxRounds,
                 drawTimeSec,
-                currentRound
+                currentRound,
+                maxPlayers,
+                startInSec
         );
     }
 
@@ -238,11 +279,24 @@ public class GameRoom {
                 JsonCodec.toNode(new ErrorMsgDto(code, text))));
     }
 
-    
+    public Object getRoomLock() {
+        return roomLock;
+    }
 
-    // Getters and Setters
     public String getRoomCode() {
         return roomCode;
+    }
+
+    public RoomType getRoomType() {
+        return roomType;
+    }
+
+    public int getMaxPlayers() {
+        return maxPlayers;
+    }
+
+    public long getCreatedAtNano() {
+        return createdAtNano;
     }
 
     public String getHostId() {
@@ -283,8 +337,15 @@ public class GameRoom {
 
     public void setCurrentDrawerId(String currentDrawerId) {
         this.currentDrawerId = currentDrawerId;
-        // Update isDrawer in player records
         players.replaceAll((id, p) -> p.withDrawer(Objects.equals(id, currentDrawerId)));
+    }
+
+    public Integer getStartInSec() {
+        return startInSec;
+    }
+
+    public void setStartInSec(Integer startInSec) {
+        this.startInSec = startInSec;
     }
 
     public int getPlayerCount() {
@@ -307,9 +368,7 @@ public class GameRoom {
         return List.copyOf(players.values());
     }
 
-    public RoomRuntime getRuntime() { 
-        return runtime; 
+    public RoomRuntime getRuntime() {
+        return runtime;
     }
-
 }
-

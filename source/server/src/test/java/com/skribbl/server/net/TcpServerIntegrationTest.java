@@ -152,6 +152,34 @@ class TcpServerIntegrationTest {
         }
     }
 
+    @Test
+    @DisplayName("Quick Join should match two clients into the same PUBLIC room")
+    void testQuickJoinMatchmakingFlow() throws Exception {
+        int port = server.getPort();
+        try (TestClientHelper client1 = new TestClientHelper(port);
+             TestClientHelper client2 = new TestClientHelper(port)) {
+
+            client1.send(MessageType.CONNECT_REQ, new ConnectReqDto("QuickA"));
+            assertEquals(MessageType.CONNECT_ACK, client1.readMessage().type());
+
+            client1.send(MessageType.QUICK_JOIN, null);
+            NetworkMessage upd1 = client1.readMessage();
+            assertEquals(MessageType.ROOM_UPDATE, upd1.type());
+            RoomUpdateDto dto1 = JsonCodec.decodePayload(upd1, RoomUpdateDto.class);
+            assertEquals(com.skribbl.common.model.RoomType.PUBLIC, dto1.roomType());
+
+            client2.send(MessageType.CONNECT_REQ, new ConnectReqDto("QuickB"));
+            assertEquals(MessageType.CONNECT_ACK, client2.readMessage().type());
+
+            client2.send(MessageType.QUICK_JOIN, null);
+            NetworkMessage upd2 = client2.readMessage();
+            assertEquals(MessageType.ROOM_UPDATE, upd2.type());
+            RoomUpdateDto dto2 = JsonCodec.decodePayload(upd2, RoomUpdateDto.class);
+            assertEquals(dto1.roomCode(), dto2.roomCode());
+            assertEquals(2, dto2.players().size());
+        }
+    }
+
     private ExecutorService gameTasks;
 
     private void attachGameRuntime() throws IOException {

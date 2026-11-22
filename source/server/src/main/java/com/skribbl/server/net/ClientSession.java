@@ -1,6 +1,7 @@
 package com.skribbl.server.net;
 
 import com.skribbl.common.dto.ErrorMsgDto;
+import com.skribbl.common.model.AvatarDto;
 import com.skribbl.common.protocol.JsonCodec;
 import com.skribbl.common.protocol.MessageType;
 import com.skribbl.common.protocol.NetworkMessage;
@@ -36,6 +37,7 @@ public class ClientSession {
     private volatile String playerId;
     private volatile String nickname;
     private volatile String currentRoomCode;
+    private volatile AvatarDto avatar = AvatarDto.DEFAULT;
 
     private BiConsumer<ClientSession, NetworkMessage> messageHandler;
     private Consumer<ClientSession> disconnectHandler;
@@ -189,6 +191,14 @@ public class ClientSession {
 
     public void setCurrentRoomCode(String currentRoomCode) {
         this.currentRoomCode = currentRoomCode;
+    }
+
+    public AvatarDto getAvatar() {
+        return avatar != null ? avatar : AvatarDto.DEFAULT;
+    }
+
+    public void setAvatar(AvatarDto avatar) {
+        this.avatar = avatar != null ? avatar : AvatarDto.DEFAULT;
     }
 
     public Socket getSocket() {

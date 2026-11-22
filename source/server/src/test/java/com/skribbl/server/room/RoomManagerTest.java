@@ -6,8 +6,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 
+import com.skribbl.common.model.AvatarDto;
 import com.skribbl.common.model.PlayerDto;
 import com.skribbl.common.model.RoomStatus;
+import com.skribbl.common.model.RoomType;
 import com.skribbl.server.net.ClientSession;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -146,6 +148,32 @@ class RoomManagerTest {
 
         assertEquals(0, roomManager.getRoomCount());
         assertNull(roomManager.getRoom(code));
+    }
+
+    @Test
+    @DisplayName("QuickJoin should match players into a PUBLIC room and propagate AvatarDto")
+    void testQuickJoinAndAvatarPropagation() throws IOException {
+        ClientSession p1 = createTestSession("QuickOne");
+        p1.setAvatar(new AvatarDto(3, 4, 5));
+
+        StringBuilder err1 = new StringBuilder();
+        GameRoom publicRoom = roomManager.quickJoin(p1, err1);
+        assertNotNull(publicRoom);
+        assertEquals(RoomType.PUBLIC, publicRoom.getRoomType());
+        assertEquals(6, publicRoom.getMaxPlayers());
+        assertEquals(new AvatarDto(3, 4, 5), publicRoom.getPlayer(p1.getPlayerId()).avatar());
+
+        ClientSession p2 = createTestSession("QuickTwo");
+        StringBuilder err2 = new StringBuilder();
+        GameRoom joinedRoom = roomManager.quickJoin(p2, err2);
+        assertNotNull(joinedRoom);
+        assertEquals(publicRoom.getRoomCode(), joinedRoom.getRoomCode());
+        assertEquals(2, publicRoom.getPlayerCount());
+
+        // Direct JOIN_ROOM by code on a PUBLIC room should be rejected
+        ClientSession p3 = createTestSession("CodeAttempt");
+        StringBuilder err3 = new StringBuilder();
+        assertFalse(roomManager.joinRoom(publicRoom.getRoomCode(), p3, err3));
     }
 
     /**
