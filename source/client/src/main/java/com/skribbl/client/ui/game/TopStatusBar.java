@@ -118,13 +118,13 @@ public class TopStatusBar extends HBox {
     }
 
     private void copyRoomCode() {
-        if (currentRoomCode == null || currentRoomCode.isBlank()) {
+        if (!copyCodeBtn.isVisible() || currentRoomCode == null || currentRoomCode.isBlank()) {
             return;
         }
         ClipboardContent content = new ClipboardContent();
         content.putString(currentRoomCode);
-        Clipboard.getSystemClipboard().setContent(content);
-        copyCodeBtn.setText("✅ Đã chép!");
+        boolean copied = Clipboard.getSystemClipboard().setContent(content);
+        copyCodeBtn.setText(copied ? "✅ Đã chép!" : "Chép mã thất bại");
         PauseTransition pause = new PauseTransition(Duration.seconds(1.8));
         pause.setOnFinished(ev -> copyCodeBtn.setText("📋 Copy mã"));
         pause.play();

@@ -1,8 +1,10 @@
 package com.skribbl.client.ui.avatar;
 
 import com.skribbl.common.model.AvatarDto;
+import javafx.application.Platform;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.ArcType;
 import javafx.scene.shape.StrokeLineCap;
@@ -18,20 +20,33 @@ public class AvatarView extends Canvas {
     };
 
     private AvatarDto avatar;
+    private Image remoteImage;
 
     public AvatarView(AvatarDto avatar, double size) {
         super(size, size);
-        this.avatar = avatar != null ? avatar : AvatarDto.DEFAULT;
-        draw();
+        setAvatar(avatar);
     }
 
     public AvatarDto getAvatar() {
         return avatar;
     }
 
-    public void setAvatar(AvatarDto avatar) {
-        this.avatar = avatar != null ? avatar : AvatarDto.DEFAULT;
+    public void setAvatar(AvatarDto value) {
+        avatar = value != null ? value : AvatarDto.DEFAULT;
+        remoteImage = null;
         draw();
+
+        String imageId = avatar.imageId();
+        if (imageId == null) {
+            return;
+        }
+
+        AvatarImages.load(imageId).thenAccept(image -> Platform.runLater(() -> {
+            if (imageId.equals(avatar.imageId())) {
+                remoteImage = image;
+                draw();
+            }
+        }));
     }
 
     public void draw() {
@@ -39,6 +54,10 @@ public class AvatarView extends Canvas {
         double h = getHeight();
         GraphicsContext gc = getGraphicsContext2D();
         gc.clearRect(0, 0, w, h);
+        if (remoteImage != null) {
+            gc.drawImage(remoteImage, 0, 0, w, h);
+            return;
+        }
         gc.setLineCap(StrokeLineCap.ROUND);
 
         String hex = BODY_COLORS[Math.floorMod(avatar.colorIndex(), BODY_COLORS.length)];

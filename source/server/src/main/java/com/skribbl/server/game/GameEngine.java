@@ -250,7 +250,8 @@ public class GameEngine {
 
     private void sendTurnStart(ClientSession member) {
         PlayerDto drawer = room.getPlayer(drawerId);
-        boolean canGuess = Objects.equals(member.getPlayerId(), drawerId) || eligible.contains(member.getPlayerId());
+        String memberId = member.getPlayerId();
+        boolean canGuess = !Objects.equals(memberId, drawerId) || eligible.contains(member.getPlayerId());
         TurnStartDto dto = new TurnStartDto(room.getCurrentRound(), room.getMaxRounds(),
                 drawerId, drawer == null ? "" : drawer.nickname(),
                 displayFor(member), room.getDrawTimeSec(), canGuess);

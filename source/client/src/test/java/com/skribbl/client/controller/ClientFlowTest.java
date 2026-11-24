@@ -10,6 +10,7 @@ import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
@@ -199,6 +200,41 @@ class ClientFlowTest {
         drainIncoming();
         assertEquals("ROOM2", fx(controller::getCurrentRoomCode));
         assertEquals(2, joins.get());
+    }
+
+    @Test
+    void avatarCanChangeAfterLeaveAndIsSentOnNextRegistration() throws Exception {
+        connectAndCreate();
+        fx(() -> { controller.leaveRoom(); return null; });
+        peer.expect(MessageType.LEAVE_ROOM);
+        peer.send(MessageType.LEAVE_ROOM, null);
+        drainIncoming();
+
+        fx(() -> {
+            VBox header = (VBox) lobby.getChildren().getFirst();
+            ComboBox<?> picker = (ComboBox<?>) header.getChildren().getLast();
+            VBox card = (VBox) lobby.getChildren().get(1);
+            Label status = (Label) card.getChildren().getLast();
+            assertFalse(picker.isDisabled());
+            assertEquals("", status.getText());
+
+            picker.getSelectionModel().select(4);
+            picker.getOnAction().handle(new ActionEvent());
+            controller.requestCreateRoom("127.0.0.1", listener.getLocalPort(), "Tester", 1, 60);
+            return null;
+        });
+
+        try (Peer previousPeer = peer) {
+            assertEquals(-1, previousPeer.input.read());
+            peer = new Peer(listener.accept());
+        }
+        ConnectReqDto registration = JsonCodec.decodePayload(peer.expect(MessageType.CONNECT_REQ), ConnectReqDto.class);
+        assertEquals("robot-5", registration.avatar().imageId());
+        peer.send(MessageType.CONNECT_ACK, new ConnectAckDto("A", "Tester"));
+        peer.expect(MessageType.CREATE_ROOM);
+        peer.send(MessageType.ROOM_UPDATE, room("ROOM2", RoomStatus.WAITING));
+        drainIncoming();
+        assertEquals("ROOM2", fx(controller::getCurrentRoomCode));
     }
 
     @Test

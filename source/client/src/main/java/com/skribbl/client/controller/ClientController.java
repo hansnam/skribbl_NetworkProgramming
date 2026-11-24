@@ -42,6 +42,7 @@ public class ClientController {
 
     private String nickname;
     private AvatarDto avatar = AvatarDto.DEFAULT;
+    private AvatarDto registeredAvatar;
     private String playerId;
     private String connectedHost;
     private int connectedPort;
@@ -50,6 +51,7 @@ public class ClientController {
     private RoomStatus state = RoomStatus.WAITING;
     private List<PlayerDto> players = List.of();
     private boolean canDraw;
+    private boolean canGuess;
     private boolean offline;
     private boolean shutdown;
 
@@ -87,6 +89,10 @@ public class ClientController {
 
     public String getNickname() {
         return nickname;
+    }
+
+    public boolean isRegistered() {
+        return playerId != null;
     }
 
     public AvatarDto getAvatar() {
@@ -156,11 +162,14 @@ public class ClientController {
                 showError("Phiên hiện tại giữ host/nickname cũ. Ngắt kết nối trước khi đổi.");
                 return;
             }
-            beginPending(kind);
-            request.run();
-            if (kind == Pending.CONNECT)
-                finishPending();
-            return;
+            if (Objects.equals(avatar, registeredAvatar)) {
+                beginPending(kind);
+                request.run();
+                if (kind == Pending.CONNECT) {
+                    finishPending();
+                }
+                return;
+            }
         }
 
         nickname = name.strip();
@@ -173,6 +182,7 @@ public class ClientController {
         beginPending(kind);
         String registeredName = nickname;
         AvatarDto selectedAvatar = avatar;
+        registeredAvatar = selectedAvatar;
 
         connector.execute(() -> {
             try {
@@ -427,12 +437,13 @@ public class ClientController {
                 state = RoomStatus.DRAWING;
                 TurnStartDto turn = JsonCodec.decodePayload(message, TurnStartDto.class);
                 canDraw = Objects.equals(playerId, turn.drawerId());
+                canGuess = turn.canGuess();
                 gameView.getDrawingCanvas().clearCanvasLocal();
                 gameView.getDrawingCanvas().setDrawingEnabled(canDraw);
                 gameView.getDrawingCanvas().setReactionBarVisible(!canDraw);
                 gameView.getTopStatusBar().updateTurnInfo("Vòng " + turn.round() + "/" + turn.maxRounds()
                         + " • Người vẽ: " + turn.drawerNickname(), turn.wordDisplay(), turn.drawTimeSec());
-                updateRoleBanner(turn.canGuess());
+                updateRoleBanner(canGuess);
                 refreshChat();
                 SoundManager.playTurnStart();
             }
@@ -445,6 +456,7 @@ public class ClientController {
                 }
                 if (timer.remainingSec() == 0) {
                     canDraw = false;
+                    canGuess = false;
                     gameView.getDrawingCanvas().setDrawingEnabled(false);
                     gameView.getDrawingCanvas().setReactionBarVisible(false);
                 }
@@ -480,7 +492,7 @@ public class ClientController {
                     gameView.getPlayerListPanel().recordTurnDelta(drawer.id(), dto.drawerBonus());
                 }
                 gameView.getPlayerListPanel().updatePlayers(players);
-                updateRoleBanner(true);
+                updateRoleBanner(canGuess);
                 refreshChat();
                 append("[Hệ thống] 🎉 " + dto.nickname() + " đã đoán đúng! +" + dto.awardedPoints());
                 SoundManager.playCorrectGuess();
@@ -490,6 +502,7 @@ public class ClientController {
                 closeChoice();
                 state = RoomStatus.TURN_REVEAL;
                 canDraw = false;
+                canGuess = false;
                 TurnEndDto dto = JsonCodec.decodePayload(message, TurnEndDto.class);
                 players = dto.players();
                 gameView.getPlayerListPanel().setTurnDeltas(dto.turnScores());
@@ -511,6 +524,7 @@ public class ClientController {
                 closeResult();
                 state = RoomStatus.GAME_OVER;
                 canDraw = false;
+                canGuess = false;
                 GameOverDto dto = JsonCodec.decodePayload(message, GameOverDto.class);
                 players = dto.players();
                 gameView.getPlayerListPanel().updatePlayers(players);
@@ -582,6 +596,7 @@ public class ClientController {
         }
         if (state != RoomStatus.DRAWING) {
             canDraw = false;
+            canGuess = false;
             gameView.getDrawingCanvas().setDrawingEnabled(false);
             gameView.getDrawingCanvas().setReactionBarVisible(false);
         }
@@ -728,6 +743,7 @@ public class ClientController {
         state = RoomStatus.WAITING;
         players = List.of();
         canDraw = false;
+        canGuess  = false;
         if (gameView != null) {
             gameView.clearRoom();
         }

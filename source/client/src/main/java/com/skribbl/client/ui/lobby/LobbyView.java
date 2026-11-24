@@ -35,6 +35,8 @@ public class LobbyView extends VBox {
     private final Button joinBtn;
     private final Button offlineBtn;
     private final AvatarView avatarView;
+    private final HBox avatarEditor;
+    private final ComboBox<String> robotPicker;
     private int colorIdx = 0;
     private int eyesIdx = 0;
     private int mouthIdx = 0;
@@ -60,8 +62,9 @@ public class LobbyView extends VBox {
         subtitle.setStyle("-fx-text-fill: #BFDBFE;");
 
         avatarView = new AvatarView(AvatarDto.DEFAULT, 76);
-        HBox avatarEditor = createAvatarCustomizer();
-        headerAndAvatarBox.getChildren().addAll(title, subtitle, avatarEditor);
+        avatarEditor = createAvatarCustomizer();
+        robotPicker = createRobotPicker();
+        headerAndAvatarBox.getChildren().addAll(title, subtitle, avatarEditor, robotPicker);
 
         // Child 1: Main Action Card (Indices 0..11 preserved for ClientFlowTest compatibility)
         VBox card = new VBox(9);
@@ -207,10 +210,27 @@ public class LobbyView extends VBox {
         return b;
     }
 
+    private ComboBox<String> createRobotPicker() {
+        ComboBox<String> picker = new ComboBox<>();
+        picker.setPromptText("Chọn ảnh robot");
+        picker.getItems().addAll("robot-1",  "robot-2", "robot-3",  "robot-4", "robot-5",  "robot-6");
+        picker.setOnAction(e -> {
+            String imageId = picker.getValue();
+            if (imageId == null) {
+                return;
+            }
+            AvatarDto selected = new AvatarDto(colorIdx, eyesIdx, mouthIdx, imageId);
+            avatarView.setAvatar(selected);
+            controller.setAvatar(selected);
+        });
+        return picker;
+    }
+
     private void updateAvatar(int c, int e, int m) {
         colorIdx = Math.floorMod(c, AvatarDto.COLOR_COUNT);
         eyesIdx = Math.floorMod(e, AvatarDto.EYES_COUNT);
         mouthIdx = Math.floorMod(m, AvatarDto.MOUTH_COUNT);
+        robotPicker.setValue(null);
         AvatarDto dto = new AvatarDto(colorIdx, eyesIdx, mouthIdx);
         avatarView.setAvatar(dto);
         controller.setAvatar(dto);
@@ -276,6 +296,8 @@ public class LobbyView extends VBox {
 
     public void setBusy(boolean value) {
         busy = value;
+        avatarEditor.setDisable(value);
+        robotPicker.setDisable(value);
         hostField.setDisable(value);
         portField.setDisable(value);
         nicknameField.setDisable(value);
@@ -288,6 +310,8 @@ public class LobbyView extends VBox {
         offlineBtn.setDisable(value);
         if (value) {
             statusLabel.setText("Đang đợi server...");
+        } else if ("Đang đợi server...".equals(statusLabel.getText())) {
+            statusLabel.setText("");
         }
     }
 

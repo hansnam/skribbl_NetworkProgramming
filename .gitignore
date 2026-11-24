@@ -16,6 +16,10 @@ replay_pid*
 *.war
 dependency-reduced-pom.xml
 
+# Node.js dependencies and local npm cache
+node_modules/
+.npm/
+
 # IDEs (when opening repository root in IntelliJ / VS Code / Eclipse)
 .idea/
 *.iws
